@@ -3,6 +3,7 @@
 #include "user.h"
 #include "utils.h"
 #include <stdio.h>
+#include <stdlib.h>
 #ifdef _WIN32
 #include <windows.h>
 #include <mmsystem.h>
@@ -138,8 +139,27 @@ static void ending_page(void) {
     } else {
         printf("[无法读取最终攻略画面：%s]\n", ENDING_ART_FILE);
     }
-    printf("\n(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ 恭喜你，已经攻略流川枫啦！\n");
-    printf("从今天起，就可以和他一起打球了～ ٩(ˊᗜˋ*)و ♡\n");
+    printf("\n(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ 恭喜你，你可以跟他一起打篮球了！\n");
+    printf("从今天起，就和流川枫一起奔赴球场吧～ ٩(ˊᗜˋ*)و ♡\n");
+}
+
+static void ending_sequence(void) {
+    char input[SMALL_TEXT_SIZE];
+
+    printf("\n========== 鼓起勇气 ==========\n");
+    printf("最近几天，你发现流川枫每次看向你时，脸上都泛着淡淡的红晕。\n");
+    printf("终于，你鼓起勇气，向他说出自己的心里话。\n\n");
+    printf("你大喊道：“流川枫，我可以跟你一起打篮球吗？”\n");
+    printf("流川枫白皙的脸上泛起淡淡的红晕，然后默默地点了点头。\n");
+    read_line("\n按回车切换到最终页面...", input, sizeof(input));
+
+#ifdef _WIN32
+    (void)system("cls");
+#else
+    (void)system("clear");
+#endif
+    ending_page();
+    pause_page();
 }
 
 static void relationship_status(const User *user) {
@@ -147,8 +167,7 @@ static void relationship_status(const User *user) {
     if (filled > 10) filled = 10;
     bgm_update_for_progress(user->returned_books);
     if (user->returned_books >= 25) {
-        ending_page();
-        pause_page();
+        ending_sequence();
         return;
     }
     printf("\n========== 攻略进度 ==========\n");
@@ -199,8 +218,7 @@ static void run_user(User *user, BookStore *books, UserStore *users, LoanStore *
                 loan_return(books, loans, users, user, BOOK_FILE, LOAN_FILE, USER_FILE);
                 bgm_update_for_progress(user->returned_books);
                 if (returned_before < 25 && user->returned_books >= 25) {
-                    ending_page();
-                    pause_page();
+                    ending_sequence();
                 }
                 break;
             }
