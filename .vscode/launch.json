@@ -19,8 +19,9 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/Users/ZXzh2/Desktop/程序设计plus",
-      "program": "c:/Users/ZXzh2/Desktop/程序设计plus/build/Debug/outDebug",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/library.exe",
+      "preLaunchTask": "编译图书馆程序",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
