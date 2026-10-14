@@ -1,2 +1,4 @@
 1|admin|admin123|系统管理员|1|0
-2|student|student123|张三|0|9
+2|student|student123|张三|0|25
+3|ltlan|ltlan256|lantian|0|5
+4|1|1|1|0|5
