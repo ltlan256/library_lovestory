@@ -4,18 +4,36 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#fff3f8">
-  <title>流川枫心动狙击战 · 心动图书馆</title>
+  <title>图书馆心动大作战</title>
   <link rel="stylesheet" href="styles.css">
   <script src="app.js" defer></script>
 </head>
 <body>
-  <section id="welcome-screen" class="welcome-screen" aria-labelledby="welcome-title">
+  <section id="character-screen" class="welcome-screen" aria-labelledby="character-title">
+    <div class="welcome-card character-picker">
+      <span class="welcome-badge">STEP 01 · 选择你的攻略对象</span>
+      <h1 id="character-title" tabindex="-1">图书馆<br><span>心动大作战</span></h1>
+      <p class="welcome-description">今天，想和谁一起翻开故事？<br>选一个心动搭子，开启专属图书馆。</p>
+      <div class="character-options">
+        <button class="character-option rukawa-option" type="button" data-character="rukawa">
+          <img src="assets/rukawa.png" alt="流川枫的黑白漫画肖像" width="981" height="983">
+          <span class="character-option-copy"><strong>流川枫</strong><small>冷面少年 · 粉色心动篇</small><b>选择流川枫 →</b></span>
+        </button>
+        <button class="character-option nailong-option" type="button" data-character="nailong">
+          <img src="assets/nailong.png" alt="黄色的奶龙，配文惊鸿一瞥" width="224" height="195">
+          <span class="character-option-copy"><strong>奶龙</strong><small>萌萌搭子 · 奶油黄陪伴篇</small><b>选择奶龙 →</b></span>
+        </button>
+      </div>
+      <p class="welcome-footnote">两个角色都可以借书、收集好感度，解锁各自的特别结局 ♡</p>
+    </div>
+  </section>
+  <section id="welcome-screen" class="welcome-screen" aria-labelledby="welcome-title" hidden>
     <div class="welcome-card">
       <div class="welcome-sticker" aria-hidden="true">📚 ♡ 🐾</div>
       <span class="welcome-badge">心动图书馆 · 心动特别篇</span>
       <p class="welcome-greeting">欢迎来到图书馆，今天也等到你啦 (ฅ´ω`ฅ)</p>
-      <h1 id="welcome-title">流川枫<br><span>心动狙击战</span></h1>
-      <p class="welcome-description">嘘——书架之间，藏着一场只属于你的心动。<br>借一本书，让故事和他的目光，都向你靠近一点。</p>
+      <h1 id="welcome-title">图书馆<br><span>心动大作战</span></h1>
+      <p class="welcome-description" id="welcome-character-description">嘘——书架之间，藏着一场只属于你的心动。</p>
       <div class="welcome-guide">
         <h2>♡ 攻略小纸条</h2>
         <ol>
@@ -26,6 +44,7 @@
         <p>♪ 0–4 本：初遇 · 5–24 本：靠近 · 25 本：心动结局</p>
       </div>
       <button id="enter-library" class="button button-primary enter-button" type="button">推开门，开始攻略 <span>→</span></button>
+      <button id="welcome-change-character" class="text-button change-character" type="button">← 重新选择攻略对象</button>
       <p class="welcome-footnote">入馆后开启 BGM，右下角随时暂停或调节音量 ♫</p>
     </div>
     <div class="welcome-decoration" aria-hidden="true">✦<br>♡<br>✧</div>
@@ -33,7 +52,7 @@
   <section id="login-screen" class="welcome-screen" aria-labelledby="login-title" hidden>
     <div class="welcome-card login-card">
       <div class="welcome-sticker" aria-hidden="true">💌 ♡ 📖</div>
-      <span class="welcome-badge">STEP 02 · 领取你的入馆证</span>
+      <span class="welcome-badge" id="login-character-label">STEP 03 · 领取你的入馆证</span>
       <h1 id="login-title">心动入馆处</h1>
       <p class="welcome-description">填好你的小档案，再一起走进故事里吧。</p>
       <form id="login-form" class="welcome-guide login-form">
@@ -59,6 +78,7 @@
         <span><strong>心动图书馆</strong><small>BOOKS & STORIES</small></span>
       </a>
       <button class="guide-button" id="show-guide" type="button">♡ 攻略说明 / 回到入口</button>
+      <button class="guide-button change-target-button" id="change-character" type="button">↔ 切换攻略对象</button>
       <div class="side-label">工作台</div>
       <nav class="primary-nav" aria-label="主导航">
         <button class="nav-link active" data-page="dashboard"><span class="nav-icon">⌂</span>总览</button>
@@ -77,7 +97,7 @@
 
     <main class="main-area">
       <header class="topbar">
-        <div class="breadcrumb"><span>心动图书馆</span><b>/</b><strong id="page-title">总览</strong></div>
+        <div class="breadcrumb"><span id="library-route-name">心动图书馆</span><b>/</b><strong id="page-title">总览</strong></div>
         <div class="top-actions">
           <span class="demo-pill"><i></i>本地演示</span>
           <button id="role-switch" class="role-switch" type="button" title="退出登录并更换账号" aria-label="退出登录并更换账号">

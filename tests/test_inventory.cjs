@@ -5,10 +5,12 @@ const catalog = JSON.parse(fs.readFileSync('web/books.json', 'utf8'));
 const source = fs.readFileSync('web/app.js', 'utf8');
 const storageKey = 'shiye-library-web-v1';
 
-async function launch(saved, offline = false) {
+async function launch(saved, offline = false, route = '') {
   const storage = new Map(saved ? [[storageKey, JSON.stringify(saved)]] : []);
   const nodes = new Map();
   const documentHandlers = {};
+  const rootAttributes = {};
+  const location = { search: route, pathname: '/' };
   const element = id => {
     if (!nodes.has(id)) nodes.set(id, {
       hidden: id !== '#welcome-screen', value: '', textContent: '', innerHTML: '',
@@ -23,9 +25,13 @@ async function launch(saved, offline = false) {
     return nodes.get(id);
   };
   const context = vm.createContext({
-    document: { querySelector: element, querySelectorAll: () => [], addEventListener: (name, handler) => { documentHandlers[name] = handler; } },
+    document: {
+      documentElement: { setAttribute: (key, value) => { rootAttributes[key] = value; }, removeAttribute: key => { delete rootAttributes[key]; } },
+      querySelector: element, querySelectorAll: () => [], addEventListener: (name, handler) => { documentHandlers[name] = handler; }
+    },
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
-    window: { scrollTo() {} }, setTimeout: () => 0, clearTimeout() {},
+    window: { location, history: { replaceState: (_state, _title, url) => { location.search = url.startsWith('?') ? url : ''; } }, scrollTo() {} },
+    URLSearchParams, setTimeout: () => 0, clearTimeout() {},
     fetch: async url => {
       if (offline && url === 'books.json') throw new Error('offline');
       return { ok: true, json: async () => url === 'books.json' ? structuredClone(catalog) : { adminSetupAvailable: true } };
@@ -34,7 +40,7 @@ async function launch(saved, offline = false) {
   vm.runInContext(source, context);
   await new Promise(resolve => setImmediate(resolve));
   return {
-    run: code => vm.runInContext(code, context), saved: () => JSON.parse(storage.get(storageKey)), element,
+    run: code => vm.runInContext(code, context), saved: () => JSON.parse(storage.get(storageKey)), element, rootAttributes, location,
     click: dataset => documentHandlers.click({ preventDefault() {}, target: { closest: () => ({ dataset, matches: () => false }) } }),
     submitSearch: () => documentHandlers.submit({ preventDefault() {}, target: { id: 'catalog-search-form' } })
   };
@@ -139,5 +145,43 @@ async function launch(saved, offline = false) {
   flow.click({ page: 'readers' });
   assert.equal(flow.run('state.page'), 'readers');
   console.log('PASS: dashboard links, search, confirmation, cancel, explicit agreement, duplicate submit, success navigation and stock recheck');
+
+  const chooser = await launch();
+  assert.equal(chooser.element('#character-screen').hidden, false, 'first page is character selection');
+  assert.equal(chooser.element('#welcome-screen').hidden, true);
+  chooser.click({ character: 'nailong' });
+  assert.equal(chooser.rootAttributes['data-character'], 'nailong');
+  assert.equal(chooser.location.search, '?character=nailong');
+  assert.equal(chooser.element('#character-screen').hidden, true);
+  assert.equal(chooser.element('#welcome-screen').hidden, false);
+  chooser.run('authenticated = true; state.activeUserId = 2; enterLibrary();');
+  assert.match(chooser.element('#page-content').innerHTML, /assets\/nailong.png/);
+  chooser.run('borrowBook(1); returnBook(1);');
+  assert.equal(chooser.run('characterProgress()'), 1);
+  chooser.click({ character: 'rukawa' });
+  chooser.run('enterLibrary()');
+  assert.equal(chooser.rootAttributes['data-character'], 'rukawa');
+  assert.equal(chooser.run('characterProgress()'), 0, 'nailong progress does not transfer to rukawa');
+  assert.match(chooser.element('#page-content').innerHTML, /assets\/rukawa.png/);
+  chooser.run('borrowBook(1); selectCharacter("nailong"); enterLibrary(); returnBook(1);');
+  assert.equal(chooser.run('characterProgress()'), 1, 'returns credit the character selected when borrowing');
+  assert.equal(chooser.run('currentUser().characterProgress.rukawa'), 1);
+  chooser.run('currentUser().characterProgress.rukawa = 25; currentUser().characterProgress.nailong = 5; selectCharacter("rukawa"); enterLibrary();');
+  assert.equal(chooser.run('musicStage'), 'ending');
+  chooser.run('selectCharacter("nailong"); enterLibrary();');
+  assert.equal(chooser.run('musicStage'), 'middle');
+  chooser.run('currentUser().characterProgress.rukawa = 1; currentUser().characterProgress.nailong = 1; persist();');
+  chooser.element('#change-character').handlers.click();
+  assert.equal(chooser.element('#character-screen').hidden, false);
+  assert.equal(chooser.rootAttributes['data-character'], undefined);
+  const yellowRoute = await launch(chooser.saved(), false, '?character=nailong');
+  assert.equal(yellowRoute.rootAttributes['data-character'], 'nailong');
+  assert.equal(yellowRoute.element('#welcome-screen').hidden, false);
+  assert.equal(yellowRoute.element('#library-app').hidden, true, 'a direct role link still requires login');
+  assert.equal(yellowRoute.run('state.users.find(user => user.id === 2).characterProgress.nailong'), 1);
+  const invalidRoute = await launch(undefined, false, '?character=invalid');
+  assert.equal(invalidRoute.element('#character-screen').hidden, false);
+  assert.ok(fs.statSync('web/assets/nailong.png').size > 0);
+  console.log('PASS: character choice, pink/yellow routes, portrait switching, separate persisted progress and return attribution');
   console.log('PASS: 250 titles, 1–3 copies, stock depletion/recovery, duplicate borrow/return protection, stable refresh and legacy migration');
 })().catch(error => { console.error(error); process.exitCode = 1; });

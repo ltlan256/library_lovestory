@@ -1,5 +1,9 @@
 const STORAGE_KEY = "shiye-library-web-v1";
 const CATALOG_VERSION = 2;
+const CHARACTERS = {
+  rukawa: { name: "流川枫", title: "流川枫心动狙击战", image: "assets/rukawa.png", alt: "流川枫的黑白漫画肖像", width: 981, height: 983, greeting: "借一本书，让故事和他的目光，都向你靠近一点。" },
+  nailong: { name: "奶龙", title: "奶龙心动大冒险", image: "assets/nailong.png", alt: "黄色的奶龙，配文惊鸿一瞥", width: 224, height: 195, greeting: "借一本书，和奶龙一起收集暖乎乎的快乐！" }
+};
 const DEMO_BOOKS = [
   { id: 1, title: "小王子", author: "安东尼·德·圣埃克苏佩里", category: "童话", year: 2018, available: true },
   { id: 2, title: "百年孤独", author: "加西亚·马尔克斯", category: "文学", year: 2011, available: false },
@@ -21,6 +25,7 @@ const state = {
   loans: [],
   activeUserId: 2,
   page: "dashboard",
+  character: "rukawa",
   query: "",
   category: "全部分类",
   availability: "全部状态",
@@ -133,6 +138,47 @@ function currentUser() {
   return state.users.find((user) => user.id === state.activeUserId) ?? state.users[0] ?? DEMO_USERS[1];
 }
 
+function characterProgress(user = currentUser()) {
+  return user.characterProgress?.[state.character] ?? (state.character === "rukawa" ? user.returnedBooks ?? 0 : 0);
+}
+
+function selectCharacter(id) {
+  if (!CHARACTERS[id]) return;
+  state.character = id;
+  const character = CHARACTERS[id];
+  document.documentElement?.setAttribute("data-character", id);
+  document.title = `${character.title} · 图书馆心动大作战`;
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", id === "nailong" ? "#fff9e6" : "#fff3f8");
+  document.querySelector("#welcome-title").innerHTML = `${character.name}<br><span>${id === "nailong" ? "心动大冒险" : "心动狙击战"}</span>`;
+  document.querySelector("#welcome-character-description").textContent = character.greeting;
+  document.querySelector("#login-character-label").textContent = `STEP 03 · ${character.name}篇 · 领取你的入馆证`;
+  document.querySelector("#library-route-name").textContent = `${character.name}的图书馆`;
+  document.querySelector("#character-screen").hidden = true;
+  document.querySelector("#welcome-screen").hidden = false;
+  document.querySelector("#login-screen").hidden = true;
+  document.querySelector("#library-app").hidden = true;
+  document.querySelector("#login-password").value = "";
+  window.history?.replaceState(null, "", `?character=${id}`);
+  updateMusicStage();
+  window.scrollTo({ top: 0 });
+  document.querySelector("#enter-library").focus();
+}
+
+function showCharacterSelection() {
+  document.querySelector("#character-screen").hidden = false;
+  document.querySelector("#welcome-screen").hidden = true;
+  document.querySelector("#login-screen").hidden = true;
+  document.querySelector("#library-app").hidden = true;
+  document.querySelector("#login-password").value = "";
+  document.documentElement?.removeAttribute("data-character");
+  document.title = "图书馆心动大作战";
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", "#fff3f8");
+  window.history?.replaceState(null, "", window.location?.pathname || "/");
+  updateMusicStage();
+  window.scrollTo({ top: 0 });
+  document.querySelector("#character-title").focus();
+}
+
 function isAdmin() {
   return Boolean(currentUser().isAdmin);
 }
@@ -201,17 +247,18 @@ function tableMarkup(books, options = {}) {
 }
 
 function progressMarkup(user) {
-  const returned = user.returnedBooks ?? 0;
+  const returned = characterProgress(user);
+  const character = CHARACTERS[state.character];
   const percent = Math.min(100, Math.round(returned / 25 * 100));
   return `<section class="panel progress-panel">
-    <div class="progress-top"><h2>流川枫心动狙击战</h2><span class="spark">♡</span></div>
+    <div class="progress-top"><h2>${character.title}</h2><span class="spark">♡</span></div>
     <p class="progress-lead">借一本书，靠近他一点。每成功归还 1 本，好感度 +1；累计 25 本，解锁心动结局。</p>
-    <div class="heart-line"><span>流川枫好感度</span><strong>${returned} / 25 本</strong></div>
+    <div class="heart-line"><span>${character.name}好感度</span><strong>${returned} / 25 本</strong></div>
     <div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div>
     <div class="milestone-row"><span>开始阅读</span><span>25 次 · 特别结局</span></div>
     <figure class="character-portrait">
-      <img src="assets/rukawa.png" alt="流川枫的黑白漫画肖像" width="981" height="983">
-      <figcaption><span>攻略对象 · 流川枫</span><b>♡ ${returned >= 25 ? "心动已被你击中" : returned > 4 ? "目光开始为你停留" : "故事从初遇开始"}</b></figcaption>
+      <img src="${character.image}" alt="${character.alt}" width="${character.width}" height="${character.height}">
+      <figcaption><span>攻略对象 · ${character.name}</span><b>♡ ${returned >= 25 ? "心动已被你击中" : returned > 4 ? "目光开始为你停留" : "故事从初遇开始"}</b></figcaption>
     </figure>
     <div class="progress-quote">${returned >= 25 ? "恭喜达成目标！新的故事，正等着你们一起开启。 ✨" : `已完成 <strong>${returned}</strong> 次归还，再读 ${Math.max(0, 25 - returned)} 本，就能抵达下一段故事。`}</div>
     <div class="quick-actions"><button class="button button-primary" data-page="catalog">去挑一本书 <span>→</span></button><button class="button button-quiet" data-page="loans">我的借阅</button></div>
@@ -228,7 +275,7 @@ function dashboardPage() {
   const totalCopies = state.books.reduce((total, book) => total + book.quantity, 0);
   const remainingCopies = state.books.reduce((total, book) => total + availableCopies(book), 0);
   const onLoan = isAdmin() ? state.loans.length : state.loans.filter((loan) => loan.userId === user.id).length;
-  const returned = user.returnedBooks ?? 0;
+  const returned = characterProgress(user);
   const latest = [...state.books].sort((a, b) => b.id - a.id).slice(0, 5);
   const stats = `<div class="stats-grid">
     ${statCard("馆藏种类", state.books.length, `共 <strong>${totalCopies}</strong> 本 · 每种 1–3 本`, "▤", "catalog", "全部状态")}
@@ -346,6 +393,10 @@ function openReaderDialog() {
 document.addEventListener("click", (event) => {
   const button = event.target.closest("button, a");
   if (!button) return;
+  if (button.dataset.character) {
+    selectCharacter(button.dataset.character);
+    return;
+  }
   if (button.dataset.page) {
     event.preventDefault();
     if (button.dataset.availability) {
@@ -455,7 +506,7 @@ function borrowBook(bookId) {
   if (!book || availableCopies(book) < 1) return showToast("这本书目前已借完。");
   const user = currentUser();
   if (state.loans.some((loan) => loan.bookId === bookId && loan.userId === user.id)) return showToast("你已借过这本书，请先归还后再借阅。");
-  state.loans.push({ bookId, userId: user.id, borrower: user.name, date: formatDate() });
+  state.loans.push({ bookId, userId: user.id, borrower: user.name, date: formatDate(), character: state.character });
   book.available = availableCopies(book) > 0;
   persist(); render(); showToast(`《${book.title}》已加入你的借阅。`);
   return true;
@@ -519,8 +570,13 @@ function returnBook(bookId) {
   const book = state.books.find((item) => item.id === bookId);
   if (book) book.available = availableCopies(book) > 0;
   const user = state.users.find((item) => item.id === loan.userId);
-  if (user) user.returnedBooks = (user.returnedBooks ?? 0) + 1;
-  persist(); render(); showToast(`已归还《${book?.title ?? "图书"}》，流川枫好感度 +1。`);
+  const target = CHARACTERS[loan.character] ? loan.character : "rukawa";
+  if (user) {
+    user.characterProgress ??= { rukawa: user.returnedBooks ?? 0, nailong: 0 };
+    user.characterProgress[target] = (user.characterProgress[target] ?? 0) + 1;
+    user.returnedBooks = (user.returnedBooks ?? 0) + 1;
+  }
+  persist(); render(); showToast(`已归还《${book?.title ?? "图书"}》，${CHARACTERS[target].name}好感度 +1。`);
 }
 
 const bgm = document.querySelector("#bgm");
@@ -550,8 +606,8 @@ async function playMusic() {
 }
 
 function updateMusicStage() {
-  const atEntrance = !document.querySelector("#welcome-screen").hidden || !document.querySelector("#login-screen").hidden;
-  const returned = currentUser().returnedBooks ?? 0;
+  const atEntrance = !document.querySelector("#character-screen").hidden || !document.querySelector("#welcome-screen").hidden || !document.querySelector("#login-screen").hidden;
+  const returned = characterProgress();
   const next = atEntrance || isAdmin() || returned <= 4 ? "begin" : returned >= 25 ? "ending" : "middle";
   document.querySelector("#music-stage").textContent = { begin: "初遇 · 开场曲", middle: "靠近 · 攻略曲", ending: "心动 · 结局曲" }[next];
   if (next === musicStage) return;
@@ -628,6 +684,7 @@ function updateLoginMode() {
 }
 
 function showLogin() {
+  document.querySelector("#character-screen").hidden = true;
   document.querySelector("#welcome-screen").hidden = true;
   document.querySelector("#login-screen").hidden = false;
   document.querySelector("#library-app").hidden = true;
@@ -640,6 +697,7 @@ function showLogin() {
 
 function enterLibrary() {
   if (!authenticated) return;
+  document.querySelector("#character-screen").hidden = true;
   document.querySelector("#welcome-screen").hidden = true;
   document.querySelector("#login-screen").hidden = true;
   document.querySelector("#library-app").hidden = false;
@@ -690,6 +748,12 @@ document.querySelector("#login-form").addEventListener("submit", async (event) =
     submit.textContent = registering ? "注册并进入图书馆 →" : "登录，进入图书馆 →";
   }
 });
+
+document.querySelector("#welcome-change-character").addEventListener("click", showCharacterSelection);
+document.querySelector("#change-character").addEventListener("click", showCharacterSelection);
+const routeCharacter = new URLSearchParams(window.location?.search || "").get("character");
+if (CHARACTERS[routeCharacter]) selectCharacter(routeCharacter);
+else showCharacterSelection();
 
 initialize().then(async () => {
   try {
