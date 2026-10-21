@@ -47,9 +47,14 @@ button:disabled { cursor: wait; opacity: .65; }
 .guide-button { margin: -18px 0 24px; padding: 10px; color: var(--tone-a3677d, #a3677d); background: var(--tone-fcf3f6, #fcf3f6); border: 1px solid var(--tone-f4e3e9, #f4e3e9); border-radius: 9px; font-size: 11px; }
 .character-portrait { position: relative; margin: 18px 0 15px; overflow: hidden; border: 1px solid var(--tone-eadfe3, #eadfe3); border-radius: 12px; background: #fff; }
 .character-portrait img { display: block; width: 100%; height: auto; }
-.character-portrait figcaption { display: grid; gap: 6px; padding: 12px 14px; background: var(--tone-fdf6f9, #fdf6f9); font-size: 11px; }
-.character-portrait figcaption span { color: var(--tone-885c6c, #885c6c); }
-.character-portrait figcaption b { color: var(--tone-b46280, #b46280); font-weight: 500; }
+.character-portrait .portrait-caption { display: grid; gap: 6px; padding: 12px 14px; background: var(--tone-fdf6f9, #fdf6f9); font-size: 11px; }
+.character-portrait .portrait-caption span { color: var(--tone-885c6c, #885c6c); }
+.character-portrait .portrait-caption b { color: var(--tone-b46280, #b46280); font-weight: 500; }
+.portrait-replay { display: block; width: 100%; padding: 0; border: 0; background: var(--paper); color: inherit; text-align: left; transition: filter .18s; }
+.portrait-replay:hover { filter: brightness(.97); }
+.portrait-replay:focus-visible { outline-offset: -4px; }
+.portrait-caption small { margin-top: 4px; color: var(--primary); font-size: 10px; }
+.story-replay-links { display: flex; flex-wrap: wrap; gap: 14px; margin: -3px 0 17px; }
 .music-player { position: fixed; z-index: 15; right: 20px; bottom: 16px; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 24px); padding: 10px 14px; background: #fffffff5; border: 1px solid var(--tone-eae0e4, #eae0e4); border-radius: 30px; box-shadow: 0 6px 26px var(--tone-4a303912, #4a303912); font-size: 10px; }
 .music-player button { padding: 5px 0; color: var(--primary); background: none; border: 0; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .music-player > span { color: var(--tone-a07383, #a07383); }

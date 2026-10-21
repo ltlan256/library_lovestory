@@ -42,6 +42,7 @@ let adminSetupAvailable = false;
 let pendingBorrowBookId = null;
 let milestoneReaderId = null;
 let milestoneStoryKey = null;
+let openingReturnPage = null;
 
 const content = document.querySelector("#page-content");
 const dialog = document.querySelector("#edit-dialog");
@@ -164,6 +165,7 @@ function activeLoanCount(user = currentUser()) {
 
 function selectCharacter(id) {
   if (!CHARACTERS[id]) return;
+  openingReturnPage = null;
   document.querySelector("#story-screen").hidden = true;
   state.character = id;
   const character = CHARACTERS[id];
@@ -286,9 +288,22 @@ function tableMarkup(books, options = {}) {
   </table></div>`;
 }
 
+function unlockedStories(user = currentUser()) {
+  const stories = ["opening"];
+  const flags = user.storyFlags || {};
+  if (state.character === "rukawa" && (characterReturns(user) > 4 || flags.rukawaFirstPass)) stories.push("rukawaFirstPass");
+  if (state.character === "nailong") {
+    if (characterReturns(user) > 4 || flags.nailongTrust) stories.push("nailongTrust");
+    if (characterProgress(user) >= 25 || flags.nailongFrog) stories.push("nailongFrog");
+  }
+  return stories;
+}
+
 function progressMarkup(user) {
   const returned = characterProgress(user);
   const character = CHARACTERS[state.character];
+  const stories = unlockedStories(user);
+  const latestStory = stories[stories.length - 1];
   const percent = Math.max(0, Math.min(100, Math.round(returned / 25 * 100)));
   return `<section class="panel progress-panel">
     <div class="progress-top"><h2>${character.title}</h2><span class="spark">♡</span></div>
@@ -298,9 +313,12 @@ function progressMarkup(user) {
     <div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div>
     <div class="milestone-row"><span>开始阅读</span><span>25 点 · 特别结局</span></div>
     <figure class="character-portrait">
+      <button class="portrait-replay" type="button" data-action="replay-story" data-story="${latestStory}" aria-label="点击重看${character.name}已解锁剧情">
       <img src="${character.image}" alt="${character.alt}" width="${character.width}" height="${character.height}">
-      <figcaption><span>攻略对象 · ${character.name}</span><b>♡ ${returned >= 25 ? "心动已被你击中" : returned > 4 ? "目光开始为你停留" : "故事从初遇开始"}</b></figcaption>
+      <span class="portrait-caption"><span>攻略对象 · ${character.name}</span><b>♡ ${latestStory === "nailongFrog" ? "心动已被你击中" : latestStory !== "opening" ? "目光开始为你停留" : "故事从初遇开始"}</b><small>点击图片，重温这段剧情 →</small></span>
+      </button>
     </figure>
+    <div class="story-replay-links" aria-label="已解锁剧情">${stories.map((story) => `<button type="button" class="text-button" data-action="replay-story" data-story="${story}">${story === "opening" ? "重看初遇" : story === "nailongFrog" ? "重看结局" : "重看中期"}</button>`).join("")}</div>
     <div class="progress-quote">${returned >= 25 ? "恭喜达成目标！新的故事，正等着你们一起开启。 ✨" : `本角色已完成 <strong>${characterReturns(user)}</strong> 次归还，还需积累 ${Math.max(0, 25 - characterReturns(user) + overduePenalty(user))} 点好感度，就能抵达下一段故事。`}</div>
     <div class="quick-actions"><button class="button button-primary" data-page="catalog">去挑一本书 <span>→</span></button><button class="button button-quiet" data-page="loans">我的借阅</button></div>
   </section>`;
@@ -427,6 +445,12 @@ function maybeShowFirstPassStory() {
     else if (characterProgress(user) >= 25 && !flags.nailongFrog) event = "nailongFrog";
   }
   if (!event) return;
+  showMilestoneStory(event);
+}
+
+function showMilestoneStory(event) {
+  if (!authenticated || isAdmin() || document.querySelector("#library-app").hidden || !unlockedStories().includes(event) || event === "opening") return;
+  const user = currentUser();
   const milestone = document.querySelector("#milestone-dialog");
   if (milestone.open || document.querySelector("#borrow-dialog").open || dialog.open) return;
   milestoneReaderId = user.id;
@@ -518,6 +542,13 @@ document.addEventListener("click", (event) => {
   if (["add-book", "edit-book", "delete-book", "add-reader"].includes(action) && !isAdmin()) return;
   const id = Number(button.dataset.id);
   if (button.matches("[data-close-dialog]")) dialog.close();
+  else if (action === "replay-story") {
+    if (isAdmin() || !unlockedStories().includes(button.dataset.story)) return;
+    if (button.dataset.story === "opening") {
+      openingReturnPage = state.page;
+      showOpeningStory();
+    } else showMilestoneStory(button.dataset.story);
+  }
   else if (action === "add-book") openBookDialog();
   else if (action === "edit-book") openBookDialog(state.books.find((book) => book.id === id));
   else if (action === "delete-book") {
@@ -744,7 +775,11 @@ document.querySelector("#music-volume").addEventListener("input", (event) => {
   bgm.volume = Number(event.target.value);
 });
 function continueFromOpening() {
-  if (authenticated) enterLibrary();
+  if (authenticated) {
+    const page = openingReturnPage || "dashboard";
+    openingReturnPage = null;
+    enterLibrary(page);
+  }
   else showLogin();
 }
 
@@ -781,6 +816,7 @@ document.querySelector("#story-back").addEventListener("click", () => {
   document.querySelector("#enter-library").focus();
 });
 document.querySelector("#enter-library").addEventListener("click", () => {
+  openingReturnPage = null;
   showOpeningStory();
   musicEnabled = true;
   void playMusic();
@@ -845,14 +881,14 @@ function showLogin() {
   document.querySelector("#login-name").focus();
 }
 
-function enterLibrary() {
+function enterLibrary(page = "dashboard") {
   if (!authenticated) return;
   document.querySelector("#story-screen").hidden = true;
   document.querySelector("#character-screen").hidden = true;
   document.querySelector("#welcome-screen").hidden = true;
   document.querySelector("#login-screen").hidden = true;
   document.querySelector("#library-app").hidden = false;
-  navigate("dashboard");
+  navigate(page);
   if (!document.querySelector("#milestone-dialog").open) document.querySelector(".brand").focus();
 }
 
