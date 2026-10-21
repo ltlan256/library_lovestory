@@ -23,6 +23,7 @@ const state = {
   books: [],
   users: [],
   loans: [],
+  loanHistory: [],
   activeUserId: 2,
   page: "dashboard",
   character: "rukawa",
@@ -71,6 +72,7 @@ async function initialize() {
       state.books = data.books;
       state.users = data.users;
       state.loans = data.loans;
+      state.loanHistory = Array.isArray(data.loanHistory) ? data.loanHistory : [];
       state.activeUserId = data.activeUserId ?? 2;
       if (catalog && data.catalogVersion !== CATALOG_VERSION) {
         const titles = new Set(state.books.map((book) => book.title));
@@ -129,7 +131,7 @@ function availableCopies(book) {
 
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    books: state.books, users: state.users, loans: state.loans, activeUserId: state.activeUserId,
+    books: state.books, users: state.users, loans: state.loans, loanHistory: state.loanHistory, activeUserId: state.activeUserId,
     catalogVersion: state.catalogVersion
   }));
 }
@@ -321,6 +323,18 @@ function catalogPage() {
     <div id="catalog-results">${tableMarkup(filteredBooks())}</div></section>`;
 }
 
+function borrowingTabs(history = false) {
+  const visible = (items) => isAdmin() ? items : items.filter((loan) => loan.userId === currentUser().id);
+  return `<nav class="borrowing-tabs" aria-label="借阅记录分类"><a class="button ${history ? "button-quiet" : "button-primary"}" href="#loans" data-page="loans" ${history ? "" : 'aria-current="page"'}>当前在借 · ${visible(state.loans).length}</a><a class="button ${history ? "button-primary" : "button-quiet"}" href="#loan-history" data-page="loan-history" ${history ? 'aria-current="page"' : ""}>历史记录 · ${visible(state.loanHistory).length}</a></nav>`;
+}
+
+function loanHistoryPage() {
+  const history = isAdmin() ? state.loanHistory : state.loanHistory.filter((loan) => loan.userId === currentUser().id);
+  const rows = [...history].reverse().map((loan) => `<tr><td><div class="book-cell">${coverMarkup({ title: loan.title || "图书" }, loan.bookId)}<div><div class="book-title">${escapeHtml(loan.title || "图书已删除")}</div><div class="book-author">${escapeHtml(loan.author || "")}</div></div></div></td>${isAdmin() ? `<td>${escapeHtml(loan.borrower)}</td>` : ""}<td>${escapeHtml(loan.date)}</td><td>${escapeHtml(loan.returnedDate)}</td><td>${CHARACTERS[loan.character]?.name || "流川枫"}</td><td><span class="status-tag available">已归还</span></td></tr>`).join("");
+  const table = `<div class="table-wrap"><table><thead><tr><th>书名 / 作者</th>${isAdmin() ? "<th>借阅人</th>" : ""}<th>借阅日期</th><th>归还日期</th><th>攻略角色</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">RETURNED BOOKS</div><h1>${isAdmin() ? "全部借阅历史" : "我的借阅历史"}</h1><p class="subheading">每一本读过的书，都为你留下一段故事。共 ${history.length} 条已归还记录。</p></div></div>${borrowingTabs(true)}<section class="panel">${history.length ? table : '<div class="empty-state"><div class="empty-icon">📖</div><strong>还没有历史记录</strong><span>从现在起，成功归还的图书会自动保存在这里；之前的累计归还进度仍然保留。</span></div>'}</section>`;
+}
+
 function loansPage() {
   const loans = isAdmin() ? state.loans : state.loans.filter((loan) => loan.userId === currentUser().id);
   const heading = isAdmin() ? "借阅管理" : "我的借阅";
@@ -330,7 +344,7 @@ function loansPage() {
     return `<article class="loan-card"><div class="loan-meta">${coverMarkup(book ?? { title: "书" }, loan.bookId)}<div class="loan-details"><strong>${escapeHtml(book?.title ?? "图书已删除")}</strong><small>${escapeHtml(book?.author ?? "")}${isAdmin() ? ` · 借阅人：${escapeHtml(loan.borrower)}` : ""}</small></div></div><div class="row-actions"><span class="loan-date">借于 ${escapeHtml(loan.date)}</span>${canReturn && !isAdmin() ? `<button class="button button-quiet button-small" data-action="return" data-id="${loan.bookId}">归还</button>` : ""}</div></article>`;
   }).join("") : `<div class="empty-state"><div class="empty-icon">↗</div><strong>这里还空着</strong><span>${isAdmin() ? "目前没有正在借阅的图书。" : "去书架挑一本喜欢的书，开启新的阅读吧。"}</span>${!isAdmin() ? '<p><button class="button button-primary" data-page="catalog">浏览图书 →</button></p>' : ""}</div>`;
   const header = isAdmin() ? `<div class="panel-head"><div><h2>全部在借记录</h2><p>${loans.length} 条正在进行的借阅</p></div></div>` : "";
-  content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">BORROWING HISTORY</div><h1>${heading}</h1><p class="subheading">${isAdmin() ? "查看读者借阅状态，及时完成图书归还管理。" : "正在读的书和每一次借阅，都收录在这里。"}</p></div></div><section class="panel">${header}<div class="loan-card-list">${cards}</div></section>`;
+  content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">BORROWING HISTORY</div><h1>${heading}</h1><p class="subheading">${isAdmin() ? "查看读者借阅状态，及时完成图书归还管理。" : "正在读的书和每一次借阅，都收录在这里。"}</p></div></div>${borrowingTabs()}<section class="panel">${header}<div class="loan-card-list">${cards}</div></section>`;
 }
 
 function readersPage() {
@@ -350,12 +364,13 @@ function render() {
   document.querySelector("#user-avatar").textContent = Array.from(user.name)[0] ?? "读";
   document.querySelector("#user-role").textContent = isAdmin() ? "管理员 · 点击退出" : "读者 · 点击退出";
   document.querySelectorAll(".admin-only").forEach((item) => item.classList.toggle("hidden", !isAdmin()));
-  const pageLabels = { dashboard: "总览", catalog: "馆藏图书", loans: isAdmin() ? "借阅管理" : "我的借阅", readers: "读者档案", progress: "攻略进度" };
+  const pageLabels = { dashboard: "总览", catalog: "馆藏图书", loans: isAdmin() ? "借阅管理" : "我的借阅", "loan-history": "借阅历史", readers: "读者档案", progress: "攻略进度" };
   if (state.page === "readers" && !isAdmin()) state.page = "dashboard";
   document.querySelector("#page-title").textContent = pageLabels[state.page];
-  document.querySelectorAll("[data-page]").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page && item.classList.contains("nav-link")));
+  document.querySelectorAll("[data-page]").forEach((item) => item.classList.toggle("active", item.dataset.page === (state.page === "loan-history" ? "loans" : state.page) && item.classList.contains("nav-link")));
   if (state.page === "catalog") catalogPage();
   else if (state.page === "loans") loansPage();
+  else if (state.page === "loan-history") loanHistoryPage();
   else if (state.page === "readers") readersPage();
   else if (state.page === "progress") content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">YOUR STORY</div><h1>你的心动攻略进度</h1><p class="subheading">每成功归还 1 本，好感度 +1。累计归还 25 本，解锁特别结局。</p></div><button class="button button-quiet" data-page="dashboard">返回总览</button></div><div class="progress-detail">${progressMarkup(user)}</div>`;
   else dashboardPage();
@@ -506,7 +521,7 @@ function borrowBook(bookId) {
   if (!book || availableCopies(book) < 1) return showToast("这本书目前已借完。");
   const user = currentUser();
   if (state.loans.some((loan) => loan.bookId === bookId && loan.userId === user.id)) return showToast("你已借过这本书，请先归还后再借阅。");
-  state.loans.push({ bookId, userId: user.id, borrower: user.name, date: formatDate(), character: state.character });
+  state.loans.push({ bookId, userId: user.id, borrower: user.name, date: formatDate(), character: state.character, title: book.title, author: book.author });
   book.available = availableCopies(book) > 0;
   persist(); render(); showToast(`《${book.title}》已加入你的借阅。`);
   return true;
@@ -571,6 +586,7 @@ function returnBook(bookId) {
   if (book) book.available = availableCopies(book) > 0;
   const user = state.users.find((item) => item.id === loan.userId);
   const target = CHARACTERS[loan.character] ? loan.character : "rukawa";
+  state.loanHistory.push({ ...loan, title: loan.title ?? book?.title ?? "图书已删除", author: loan.author ?? book?.author ?? "", character: target, returnedDate: formatDate(), returnedAt: new Date().toISOString() });
   if (user) {
     user.characterProgress ??= { rukawa: user.returnedBooks ?? 0, nailong: 0 };
     user.characterProgress[target] = (user.characterProgress[target] ?? 0) + 1;

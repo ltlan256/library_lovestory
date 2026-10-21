@@ -221,6 +221,8 @@ td { padding: 13px 20px; border-top: 1px solid var(--tone-f3eef0, #f3eef0); font
 .empty-state strong { display: block; margin-bottom: 5px; color: var(--tone-845a69, #845a69); font-size: 12px; }
 .empty-state span { font-size: 10px; }
 .loan-card-list { display: grid; gap: 10px; padding: 0 17px 17px; }
+.borrowing-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+.borrowing-tabs a { text-decoration: none; }
 .loan-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 15px; border: 1px solid var(--tone-f1ebed, #f1ebed); border-radius: 8px; }
 .loan-meta { display: flex; align-items: center; gap: 12px; }
 .loan-details strong { display: block; font-size: 12px; }
