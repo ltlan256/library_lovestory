@@ -40,6 +40,7 @@ let authenticated = false;
 let registering = false;
 let adminSetupAvailable = false;
 let pendingBorrowBookId = null;
+let milestoneReaderId = null;
 
 const content = document.querySelector("#page-content");
 const dialog = document.querySelector("#edit-dialog");
@@ -411,7 +412,32 @@ function render() {
   else if (state.page === "readers") readersPage();
   else if (state.page === "progress") content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">YOUR STORY</div><h1>你的心动攻略进度</h1><p class="subheading">成功归还 +1 点，每本逾期每天 -1 点；好感度达到 25 点解锁特别结局。</p></div><button class="button button-quiet" data-page="dashboard">返回总览</button></div><div class="progress-detail">${progressMarkup(user)}</div>`;
   else dashboardPage();
+  maybeShowFirstPassStory();
 }
+
+function maybeShowFirstPassStory() {
+  if (!authenticated || isAdmin() || state.character !== "rukawa" || document.querySelector("#library-app").hidden) return;
+  const user = currentUser();
+  if (characterReturns(user) <= 4 || user.storyFlags?.rukawaFirstPass) return;
+  const milestone = document.querySelector("#milestone-dialog");
+  if (milestone.open || document.querySelector("#borrow-dialog").open || dialog.open) return;
+  milestoneReaderId = user.id;
+  document.querySelector("#milestone-reader-name").textContent = user.name;
+  milestone.showModal();
+}
+
+document.querySelector("#milestone-continue").addEventListener("click", () => {
+  document.querySelector("#milestone-dialog").close();
+});
+document.querySelector("#milestone-dialog").addEventListener("close", () => {
+  const user = state.users.find((item) => item.id === milestoneReaderId);
+  if (user) {
+    user.storyFlags ??= {};
+    user.storyFlags.rukawaFirstPass = true;
+    persist();
+  }
+  milestoneReaderId = null;
+});
 
 function navigate(page) {
   if (!authenticated) return showLogin();
@@ -599,6 +625,7 @@ document.querySelector("#borrow-agreement").addEventListener("change", (event) =
 });
 document.querySelector("#borrow-dialog").addEventListener("close", () => {
   pendingBorrowBookId = null;
+  maybeShowFirstPassStory();
 });
 document.querySelector("#borrow-form").addEventListener("submit", (event) => {
   event.preventDefault();
@@ -786,7 +813,7 @@ function enterLibrary() {
   document.querySelector("#login-screen").hidden = true;
   document.querySelector("#library-app").hidden = false;
   navigate("dashboard");
-  document.querySelector(".brand").focus();
+  if (!document.querySelector("#milestone-dialog").open) document.querySelector(".brand").focus();
 }
 
 document.querySelector("#login-mode").addEventListener("click", () => { registering = false; updateLoginMode(); });

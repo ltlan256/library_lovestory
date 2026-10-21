@@ -137,6 +137,26 @@
     <label>音量 <input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.35" aria-label="BGM 音量"></label>
   </aside>
   <audio id="bgm" src="assets/begin.mp3" loop preload="metadata"></audio>
+  <dialog id="milestone-dialog" class="modal milestone-modal" aria-labelledby="milestone-title">
+    <article class="story-card">
+      <div class="story-portrait"><img src="assets/rukawa.png" alt="流川枫的黑白漫画肖像" width="981" height="983"><span>流川枫篇 · 心动事件 01</span></div>
+      <div class="story-copy">
+        <span class="welcome-badge">累计归还超过 4 本 · 第一次交谈</span>
+        <h2 id="milestone-title">原来，他记得你。</h2>
+        <div class="story-prose">
+          <p>今天，你如往常一样去体育场看流川枫打篮球。他还是一如既往地认真、专注。</p>
+          <p>就在你为此着迷时，一个球滚到了你的脚边。你抬起头，看到流川枫示意你把球传给他。</p>
+          <p>你慌张地把球传过去。他稳稳地接住，说了声：“谢谢。”</p>
+          <p>你心里暗暗开心：这是你第一次跟他说上话耶。</p>
+          <p class="story-thought">“你叫<span id="milestone-reader-name"></span>，是吗？”他问道。</p>
+          <p>这是流川枫第一次开口说篮球以外的话。你连忙点点头——他竟然对你有印象！</p>
+          <p>“传得不错。”</p>
+          <p>说完这句话，他就接着去训练了。你看到他的耳朵红红的，不知道是不是错觉。</p>
+        </div>
+        <button id="milestone-continue" class="button button-primary enter-button" type="button">藏好这份开心，继续攻略 →</button>
+      </div>
+    </article>
+  </dialog>
   <dialog id="borrow-dialog" class="modal borrow-modal" aria-labelledby="borrow-title">
     <form id="borrow-form">
       <div class="modal-head">

@@ -419,6 +419,9 @@ td { padding: 13px 20px; border-top: 1px solid var(--tone-f3eef0, #f3eef0); font
 
 .character-picker { width: min(100%, 800px); }
 .story-card { display: grid; grid-template-columns: minmax(200px, .75fr) minmax(0, 1.6fr); width: min(100%, 960px); overflow: hidden; border-radius: 24px; }
+.milestone-modal { width: min(960px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.milestone-modal h2 { margin: 22px 0 24px; color: var(--primary-dark); font-size: clamp(25px, 4vw, 36px); line-height: 1.45; }
+.milestone-modal .story-portrait { align-self: stretch; }
 .story-portrait { position: relative; display: flex; align-items: center; background: var(--primary-pale); }
 .story-portrait img { display: block; width: 100%; height: auto; }
 .story-portrait span { position: absolute; bottom: 22px; left: 20px; padding: 9px 14px; border-radius: 30px; background: var(--paper); color: var(--primary); font-size: 12px; }

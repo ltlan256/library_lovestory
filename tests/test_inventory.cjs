@@ -214,6 +214,37 @@ async function launch(saved, offline = false, route = '', now = null) {
   assert.equal(story.element('#login-screen').hidden, false);
   console.log('PASS: opening story, back/continue, login gate, replay and character-specific flow');
 
+  const milestone = await launch(undefined, false, '?character=rukawa', '2026-10-21T12:00:00');
+  milestone.run('authenticated = true; state.activeUserId = 2; currentUser().name = "小林 <test>"; enterLibrary(); for (let n = 0; n < 4; n++) { borrowBook(1); returnBook(1); }');
+  assert.ok(!milestone.element('#milestone-dialog').open, 'four returns do not trigger the milestone');
+  milestone.run('borrowBook(1); returnBook(1);');
+  assert.equal(milestone.element('#milestone-dialog').open, true, 'fifth return triggers the story');
+  assert.equal(milestone.element('#milestone-reader-name').textContent, '小林 <test>', 'name is inserted as plain text');
+  assert.equal(milestone.run('currentUser().storyFlags?.rukawaFirstPass'), undefined, 'unread story is not marked seen');
+  milestone.element('#milestone-continue').handlers.click();
+  assert.equal(milestone.run('currentUser().storyFlags.rukawaFirstPass'), true);
+  milestone.run('render(); borrowBook(1); returnBook(1);');
+  assert.equal(milestone.element('#milestone-dialog').open, false, 'seen event does not repeat');
+  const seenReload = await launch(milestone.saved(), false, '?character=rukawa');
+  seenReload.run('authenticated = true; enterLibrary();');
+  assert.ok(!seenReload.element('#milestone-dialog').open, 'seen status survives refresh');
+  milestone.run('state.users.push({ id: 3, name: "Another reader", returnedBooks: 5 }); state.activeUserId = 3; render();');
+  assert.equal(milestone.element('#milestone-dialog').open, true, 'event is tracked per reader');
+  milestone.element('#milestone-dialog').close();
+  milestone.run('state.activeUserId = 1; currentUser().returnedBooks = 5; render();');
+  assert.equal(milestone.element('#milestone-dialog').open, false, 'admin does not trigger reader story');
+  const eligible = await launch(undefined, false, '?character=nailong', '2026-10-21T12:00:00');
+  eligible.run('authenticated = true; state.activeUserId = 2; currentUser().returnedBooks = 5; enterLibrary();');
+  assert.ok(!eligible.element('#milestone-dialog').open, 'nailong route does not show the rukawa story');
+  eligible.run('selectCharacter("rukawa"); enterLibrary();');
+  assert.equal(eligible.element('#milestone-dialog').open, true, 'existing qualifying progress receives the new story');
+  const deferred = await launch(undefined, false, '?character=rukawa');
+  deferred.run('authenticated = true; state.activeUserId = 2; enterLibrary(); openBorrowDialog(1); currentUser().returnedBooks = 5; render();');
+  assert.ok(!deferred.element('#milestone-dialog').open, 'story does not stack on a borrowing confirmation');
+  deferred.element('#borrow-dialog').close();
+  assert.equal(deferred.element('#milestone-dialog').open, true, 'deferred event appears after the other dialog closes');
+  console.log('PASS: fifth-return story, personalized name, read persistence, per-reader tracking and route/admin restrictions');
+
   const historyFlow = await launch();
   historyFlow.run('authenticated = true; state.activeUserId = 2; navigate("loans");');
   assert.match(historyFlow.element('#page-content').innerHTML, /href="#loan-history"/);
