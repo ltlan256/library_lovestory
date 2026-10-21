@@ -210,7 +210,10 @@ async function launch(saved, offline = false, route = '', now = null) {
   assert.equal(story.element('#library-app').hidden, false);
   story.run('authenticated = false; selectCharacter("nailong");');
   story.element('#enter-library').handlers.click();
-  assert.equal(story.element('#story-screen').hidden, true, 'nailong does not show the rukawa story');
+  assert.equal(story.element('#story-screen').hidden, false);
+  assert.equal(story.element('#rukawa-opening').hidden, true, 'nailong does not show the rukawa story');
+  assert.equal(story.element('#nailong-opening').hidden, false);
+  story.element('#nailong-story-continue').handlers.click();
   assert.equal(story.element('#login-screen').hidden, false);
   console.log('PASS: opening story, back/continue, login gate, replay and character-specific flow');
 
@@ -244,6 +247,41 @@ async function launch(saved, offline = false, route = '', now = null) {
   deferred.element('#borrow-dialog').close();
   assert.equal(deferred.element('#milestone-dialog').open, true, 'deferred event appears after the other dialog closes');
   console.log('PASS: fifth-return story, personalized name, read persistence, per-reader tracking and route/admin restrictions');
+
+  const nailongStory = await launch(undefined, false, '?character=nailong', '2026-10-21T12:00:00');
+  nailongStory.element('#enter-library').handlers.click();
+  assert.equal(nailongStory.element('#nailong-opening').hidden, false);
+  nailongStory.element('#nailong-story-back').handlers.click();
+  assert.equal(nailongStory.element('#welcome-screen').hidden, false);
+  nailongStory.run('authenticated = true; state.activeUserId = 2; enterLibrary(); for (let n = 0; n < 4; n++) { borrowBook(1); returnBook(1); }');
+  assert.ok(!nailongStory.element('#milestone-dialog').open);
+  nailongStory.run('borrowBook(1); returnBook(1);');
+  assert.equal(nailongStory.run('milestoneStoryKey'), 'nailongTrust');
+  assert.equal(nailongStory.element('#rukawa-milestone').hidden, true);
+  assert.equal(nailongStory.element('#nailong-milestone').hidden, false);
+  assert.match(nailongStory.element('#nailong-event-prose').innerHTML, /信任一点点多了起来/);
+  assert.ok(!nailongStory.element('#nailong-event-prose').innerHTML.includes('奶蛙'));
+  nailongStory.element('#nailong-milestone-continue').handlers.click();
+  assert.equal(nailongStory.run('currentUser().storyFlags.nailongTrust'), true);
+  nailongStory.run('for (let n = 0; n < 19; n++) { borrowBook(1); returnBook(1); }');
+  assert.ok(!nailongStory.element('#milestone-dialog').open, '24 points does not trigger the ending');
+  nailongStory.run('borrowBook(1); returnBook(1);');
+  assert.equal(nailongStory.run('milestoneStoryKey'), 'nailongFrog');
+  assert.match(nailongStory.element('#nailong-event-prose').innerHTML, /奶龙始终不愿意/);
+  assert.match(nailongStory.element('#nailong-event-prose').innerHTML, /奶蛙/);
+  nailongStory.element('#nailong-milestone-continue').handlers.click();
+  assert.equal(nailongStory.run('currentUser().storyFlags.nailongFrog'), true);
+  const nailongSeen = await launch(nailongStory.saved(), false, '?character=nailong');
+  nailongSeen.run('authenticated = true; enterLibrary();');
+  assert.ok(!nailongSeen.element('#milestone-dialog').open, 'both nailong scenes remain read after refresh');
+  const catchup = await launch(undefined, false, '?character=nailong');
+  catchup.run('authenticated = true; state.activeUserId = 2; currentUser().characterProgress = { nailong: 25 }; enterLibrary();');
+  assert.equal(catchup.run('milestoneStoryKey'), 'nailongTrust', 'existing progress sees middle before ending');
+  catchup.element('#nailong-milestone-continue').handlers.click();
+  assert.equal(catchup.run('milestoneStoryKey'), 'nailongFrog');
+  catchup.element('#nailong-milestone-continue').handlers.click();
+  assert.equal(catchup.element('#milestone-dialog').open, false);
+  console.log('PASS: nailong opening, middle/ending paragraph boundaries, fifth-return and 25-point triggers, read state and chronological catch-up');
 
   const historyFlow = await launch();
   historyFlow.run('authenticated = true; state.activeUserId = 2; navigate("loans");');

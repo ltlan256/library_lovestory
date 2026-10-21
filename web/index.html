@@ -50,7 +50,7 @@
     <div class="welcome-decoration" aria-hidden="true">✦<br>♡<br>✧</div>
   </section>
   <section id="story-screen" class="welcome-screen story-screen" aria-labelledby="story-title" hidden>
-    <article class="story-card panel">
+    <article id="rukawa-opening" class="story-card panel">
       <div class="story-portrait"><img src="assets/rukawa.png" alt="流川枫的黑白漫画肖像" width="981" height="983"><span>流川枫篇 · 序章</span></div>
       <div class="story-copy">
         <span class="welcome-badge">放学后 · 体育馆</span>
@@ -64,6 +64,19 @@
           <p class="story-thought">“流川枫，什么时候才能注意到我呢？”</p>
         </div>
         <div class="story-actions"><button id="story-continue" class="button button-primary enter-button" type="button">让他记住我，开始攻略 →</button><button id="story-back" class="text-button" type="button">← 返回欢迎页</button></div>
+      </div>
+    </article>
+    <article id="nailong-opening" class="story-card panel" hidden>
+      <div class="story-portrait"><img src="assets/nailong.png" alt="黄色的奶龙" width="224" height="195"><span>奶龙篇 · 序章</span></div>
+      <div class="story-copy">
+        <span class="welcome-badge">初到人类世界 · 藏起来的委屈</span>
+        <h1 id="nailong-story-title" tabindex="-1">它只是，<br>想被认真对待。</h1>
+        <div class="story-prose">
+          <p>刚来到人类世界的奶龙，无意间看见大家把自己的奶蛙形态做成了梗图。</p>
+          <p>它觉得自己被肆意取笑、不被尊重，心里又委屈又生气。</p>
+          <p class="story-thought">从此，它对人类满怀敌意，不愿靠近任何人。</p>
+        </div>
+        <div class="story-actions"><button id="nailong-story-continue" class="button button-primary enter-button" type="button">慢慢靠近它，开始攻略 →</button><button id="nailong-story-back" class="text-button" type="button">← 返回欢迎页</button></div>
       </div>
     </article>
   </section>
@@ -138,7 +151,7 @@
   </aside>
   <audio id="bgm" src="assets/begin.mp3" loop preload="metadata"></audio>
   <dialog id="milestone-dialog" class="modal milestone-modal" aria-labelledby="milestone-title">
-    <article class="story-card">
+    <article id="rukawa-milestone" class="story-card">
       <div class="story-portrait"><img src="assets/rukawa.png" alt="流川枫的黑白漫画肖像" width="981" height="983"><span>流川枫篇 · 心动事件 01</span></div>
       <div class="story-copy">
         <span class="welcome-badge">累计归还超过 4 本 · 第一次交谈</span>
@@ -154,6 +167,15 @@
           <p>说完这句话，他就接着去训练了。你看到他的耳朵红红的，不知道是不是错觉。</p>
         </div>
         <button id="milestone-continue" class="button button-primary enter-button" type="button">藏好这份开心，继续攻略 →</button>
+      </div>
+    </article>
+    <article id="nailong-milestone" class="story-card" hidden>
+      <div class="story-portrait"><img src="assets/nailong.png" alt="黄色的奶龙" width="224" height="195"><span id="nailong-event-chapter">奶龙篇 · 信任渐近</span></div>
+      <div class="story-copy">
+        <span id="nailong-event-label" class="welcome-badge"></span>
+        <h2 id="nailong-milestone-title"></h2>
+        <div id="nailong-event-prose" class="story-prose"></div>
+        <button id="nailong-milestone-continue" class="button button-primary enter-button" type="button">珍惜这份信任，继续 →</button>
       </div>
     </article>
   </dialog>

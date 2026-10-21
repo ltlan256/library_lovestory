@@ -41,6 +41,7 @@ let registering = false;
 let adminSetupAvailable = false;
 let pendingBorrowBookId = null;
 let milestoneReaderId = null;
+let milestoneStoryKey = null;
 
 const content = document.querySelector("#page-content");
 const dialog = document.querySelector("#edit-dialog");
@@ -416,12 +417,34 @@ function render() {
 }
 
 function maybeShowFirstPassStory() {
-  if (!authenticated || isAdmin() || state.character !== "rukawa" || document.querySelector("#library-app").hidden) return;
+  if (!authenticated || isAdmin() || document.querySelector("#library-app").hidden) return;
   const user = currentUser();
-  if (characterReturns(user) <= 4 || user.storyFlags?.rukawaFirstPass) return;
+  const flags = user.storyFlags || {};
+  let event;
+  if (state.character === "rukawa" && characterReturns(user) > 4 && !flags.rukawaFirstPass) event = "rukawaFirstPass";
+  if (state.character === "nailong") {
+    if (characterReturns(user) > 4 && !flags.nailongTrust) event = "nailongTrust";
+    else if (characterProgress(user) >= 25 && !flags.nailongFrog) event = "nailongFrog";
+  }
+  if (!event) return;
   const milestone = document.querySelector("#milestone-dialog");
   if (milestone.open || document.querySelector("#borrow-dialog").open || dialog.open) return;
   milestoneReaderId = user.id;
+  milestoneStoryKey = event;
+  const nailong = state.character === "nailong";
+  document.querySelector("#rukawa-milestone").hidden = nailong;
+  document.querySelector("#nailong-milestone").hidden = !nailong;
+  milestone.setAttribute("aria-labelledby", nailong ? "nailong-milestone-title" : "milestone-title");
+  if (nailong) {
+    const ending = event === "nailongFrog";
+    document.querySelector("#nailong-event-chapter").textContent = ending ? "奶龙篇 · 只给你看的模样" : "奶龙篇 · 信任渐近";
+    document.querySelector("#nailong-event-label").textContent = ending ? "好感度达到 25 点 · 专属结局" : "累计归还超过 4 本 · 悄悄靠近";
+    document.querySelector("#nailong-milestone-title").textContent = ending ? "这个模样，只给你看。" : "它开始，愿意相信你。";
+    document.querySelector("#nailong-event-prose").innerHTML = ending
+      ? '<p>奶龙始终不愿意在其他人面前露出奶蛙形态，那是它一直介意、害怕被调侃的样子。</p><p>可在你面前，它愿意放下心底所有的不安与别扭，主动化作奶蛙模样。</p><p class="story-thought">只把这个模样，展现给你一个人看。</p>'
+      : '<p>奶龙依旧对人类心存戒备，悄悄观察着来往的人。</p><p>直到它看见你办理图书借还时，小心翼翼地护着书页，轻拿轻放，细心爱惜每一本书。</p><p class="story-thought">它慢慢放下防备，对你的信任一点点多了起来。</p>';
+    document.querySelector("#nailong-milestone-continue").textContent = ending ? "收下这份独一无二的信任 ♡" : "珍惜这份信任，继续 →";
+  }
   document.querySelector("#milestone-reader-name").textContent = user.name;
   milestone.showModal();
 }
@@ -429,14 +452,19 @@ function maybeShowFirstPassStory() {
 document.querySelector("#milestone-continue").addEventListener("click", () => {
   document.querySelector("#milestone-dialog").close();
 });
+document.querySelector("#nailong-milestone-continue").addEventListener("click", () => {
+  document.querySelector("#milestone-dialog").close();
+});
 document.querySelector("#milestone-dialog").addEventListener("close", () => {
   const user = state.users.find((item) => item.id === milestoneReaderId);
-  if (user) {
+  if (user && milestoneStoryKey) {
     user.storyFlags ??= {};
-    user.storyFlags.rukawaFirstPass = true;
+    user.storyFlags[milestoneStoryKey] = true;
     persist();
   }
   milestoneReaderId = null;
+  milestoneStoryKey = null;
+  maybeShowFirstPassStory();
 });
 
 function navigate(page) {
@@ -721,6 +749,11 @@ function continueFromOpening() {
 }
 
 function showOpeningStory() {
+  const nailong = state.character === "nailong";
+  document.querySelector("#rukawa-opening").hidden = nailong;
+  document.querySelector("#nailong-opening").hidden = !nailong;
+  const title = nailong ? "nailong-story-title" : "story-title";
+  document.querySelector("#story-screen").setAttribute("aria-labelledby", title);
   document.querySelector("#character-screen").hidden = true;
   document.querySelector("#welcome-screen").hidden = true;
   document.querySelector("#login-screen").hidden = true;
@@ -728,10 +761,18 @@ function showOpeningStory() {
   document.querySelector("#story-screen").hidden = false;
   updateMusicStage();
   window.scrollTo({ top: 0 });
-  document.querySelector("#story-title").focus();
+  document.querySelector(`#${title}`).focus();
 }
 
 document.querySelector("#story-continue").addEventListener("click", continueFromOpening);
+document.querySelector("#nailong-story-continue").addEventListener("click", continueFromOpening);
+document.querySelector("#nailong-story-back").addEventListener("click", () => {
+  document.querySelector("#story-screen").hidden = true;
+  document.querySelector("#welcome-screen").hidden = false;
+  updateMusicStage();
+  window.scrollTo({ top: 0 });
+  document.querySelector("#enter-library").focus();
+});
 document.querySelector("#story-back").addEventListener("click", () => {
   document.querySelector("#story-screen").hidden = true;
   document.querySelector("#welcome-screen").hidden = false;
@@ -740,8 +781,7 @@ document.querySelector("#story-back").addEventListener("click", () => {
   document.querySelector("#enter-library").focus();
 });
 document.querySelector("#enter-library").addEventListener("click", () => {
-  if (state.character === "rukawa") showOpeningStory();
-  else continueFromOpening();
+  showOpeningStory();
   musicEnabled = true;
   void playMusic();
 });
