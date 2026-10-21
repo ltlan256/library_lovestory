@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f8f5">
+  <title>拾页 · 图书馆</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" data-page="dashboard" aria-label="拾页图书馆首页">
+        <span class="brand-mark">拾</span>
+        <span><strong>拾页</strong><small>BOOKS & STORIES</small></span>
+      </a>
+      <div class="side-label">工作台</div>
+      <nav class="primary-nav" aria-label="主导航">
+        <button class="nav-link active" data-page="dashboard"><span class="nav-icon">⌂</span>总览</button>
+        <button class="nav-link" data-page="catalog"><span class="nav-icon">▤</span>馆藏图书</button>
+        <button class="nav-link" data-page="loans"><span class="nav-icon">↗</span>借阅管理</button>
+        <button class="nav-link admin-only" data-page="readers"><span class="nav-icon">♧</span>读者档案</button>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="side-note">
+        <span class="note-spark">✳</span>
+        <strong>给生活留一页</strong>
+        <p>在书页之间，遇见新的世界。</p>
+      </div>
+      <div class="sidebar-foot">拾页图书馆 <span>·</span> 演示版</div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="breadcrumb"><span>拾页图书馆</span><b>/</b><strong id="page-title">总览</strong></div>
+        <div class="top-actions">
+          <span class="demo-pill"><i></i>本地演示</span>
+          <button id="role-switch" class="role-switch" type="button" title="切换演示身份">
+            <span class="avatar" id="user-avatar">张</span>
+            <span class="role-copy"><strong id="user-name">张三</strong><small id="user-role">读者模式</small></span>
+            <span class="chevron">⌄</span>
+          </button>
+        </div>
+      </header>
+      <div id="notice" class="notice" role="status" hidden></div>
+      <section id="page-content" class="page-content" aria-live="polite"></section>
+      <footer class="page-footer">慢一点，读一本好书。 <span>✳</span></footer>
+    </main>
+  </div>
+
+  <dialog id="edit-dialog" class="modal">
+    <form id="edit-form" method="dialog">
+      <div class="modal-head">
+        <div><span class="eyebrow">馆藏管理</span><h2 id="dialog-title">添加图书</h2></div>
+        <button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button>
+      </div>
+      <div id="dialog-fields" class="form-grid"></div>
+      <div class="modal-actions">
+        <button class="button button-quiet" type="button" data-close-dialog>取消</button>
+        <button class="button button-primary" type="submit">保存信息 <span>→</span></button>
+      </div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
