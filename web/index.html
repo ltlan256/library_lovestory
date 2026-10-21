@@ -4,17 +4,39 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f8f5">
-  <title>拾页 · 图书馆</title>
+  <title>流川枫心动狙击战 · 拾页图书馆</title>
   <link rel="stylesheet" href="styles.css">
   <script src="app.js" defer></script>
 </head>
 <body>
-  <div class="app-shell">
+  <section id="welcome-screen" class="welcome-screen" aria-labelledby="welcome-title">
+    <div class="welcome-card">
+      <div class="welcome-sticker" aria-hidden="true">📚 ♡ 🐾</div>
+      <span class="welcome-badge">拾页图书馆 · 心动特别篇</span>
+      <p class="welcome-greeting">欢迎来到图书馆，今天也等到你啦 (ฅ´ω`ฅ)</p>
+      <h1 id="welcome-title">流川枫<br><span>心动狙击战</span></h1>
+      <p class="welcome-description">嘘——书架之间，藏着一场只属于你的心动。<br>借一本书，让故事和他的目光，都向你靠近一点。</p>
+      <div class="welcome-guide">
+        <h2>♡ 攻略小纸条</h2>
+        <ol>
+          <li><strong>挑选心仪图书</strong><span>进入「馆藏图书」，借一本喜欢的书。</span></li>
+          <li><strong>归还，收集心动</strong><span>在「我的借阅」成功归还，每本好感度 +1。</span></li>
+          <li><strong>解锁特别结局</strong><span>累计归还 25 本，完成这场心动攻略！</span></li>
+        </ol>
+        <p>♪ 0–4 本：初遇 · 5–24 本：靠近 · 25 本：心动结局</p>
+      </div>
+      <button id="enter-library" class="button button-primary enter-button" type="button">推开门，开始攻略 <span>→</span></button>
+      <p class="welcome-footnote">入馆后开启 BGM，右下角随时暂停或调节音量 ♫</p>
+    </div>
+    <div class="welcome-decoration" aria-hidden="true">✦<br>♡<br>✧</div>
+  </section>
+  <div class="app-shell" id="library-app" hidden>
     <aside class="sidebar">
       <a class="brand" href="#" data-page="dashboard" aria-label="拾页图书馆首页">
         <span class="brand-mark">拾</span>
         <span><strong>拾页</strong><small>BOOKS & STORIES</small></span>
       </a>
+      <button class="guide-button" id="show-guide" type="button">♡ 攻略说明 / 回到入口</button>
       <div class="side-label">工作台</div>
       <nav class="primary-nav" aria-label="主导航">
         <button class="nav-link active" data-page="dashboard"><span class="nav-icon">⌂</span>总览</button>
@@ -49,6 +71,12 @@
     </main>
   </div>
 
+  <aside class="music-player" aria-label="背景音乐控制">
+    <button id="music-toggle" type="button" aria-pressed="false">♫ 开启 BGM</button>
+    <span id="music-stage" role="status">初遇 · 开场曲</span>
+    <label>音量 <input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.35" aria-label="BGM 音量"></label>
+  </aside>
+  <audio id="bgm" src="assets/begin.mp3" loop preload="metadata"></audio>
   <dialog id="edit-dialog" class="modal">
     <form id="edit-form" method="dialog">
       <div class="modal-head">

@@ -157,11 +157,15 @@ function progressMarkup(user) {
   const returned = user.returnedBooks ?? 0;
   const percent = Math.min(100, Math.round(returned / 25 * 100));
   return `<section class="panel progress-panel">
-    <div class="progress-top"><h2>阅读同行计划</h2><span class="spark">✳</span></div>
-    <p class="progress-lead">每一次按时归还，都是认真阅读的温柔注脚。完成 25 次归还，解锁特别结局。</p>
+    <div class="progress-top"><h2>流川枫心动狙击战</h2><span class="spark">♡</span></div>
+    <p class="progress-lead">借一本书，靠近他一点。每成功归还 1 本，好感度 +1；累计 25 本，解锁心动结局。</p>
     <div class="heart-line"><span>流川枫好感度</span><strong>${returned} / 25 本</strong></div>
     <div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div>
     <div class="milestone-row"><span>开始阅读</span><span>25 次 · 特别结局</span></div>
+    <figure class="character-portrait">
+      <img src="assets/rukawa.png" alt="流川枫的黑白漫画肖像" width="981" height="983">
+      <figcaption><span>攻略对象 · 流川枫</span><b>♡ ${returned >= 25 ? "心动已被你击中" : returned > 4 ? "目光开始为你停留" : "故事从初遇开始"}</b></figcaption>
+    </figure>
     <div class="progress-quote">${returned >= 25 ? "恭喜达成目标！新的故事，正等着你们一起开启。 ✨" : `已完成 <strong>${returned}</strong> 次归还，再读 ${Math.max(0, 25 - returned)} 本，就能抵达下一段故事。`}</div>
     <div class="quick-actions"><button class="button button-primary" data-page="catalog">去挑一本书 <span>→</span></button><button class="button button-quiet" data-page="loans">我的借阅</button></div>
   </section>`;
@@ -181,7 +185,7 @@ function dashboardPage() {
     ${statCard("馆藏总量", state.books.length, "<strong>持续更新</strong> · 精选藏书", "▤")}
     ${statCard("当前可借", state.books.filter((book) => book.available).length, "<strong>欢迎</strong>来发现下一本", "⌕")}
     ${statCard(isAdmin() ? "借阅记录" : "我的在借", onLoan, isAdmin() ? "所有读者的在借记录" : "记得按时归还哦", "↗")}
-    ${statCard(isAdmin() ? "读者人数" : "累计归还", isAdmin() ? state.users.filter((item) => !item.isAdmin).length : returned, isAdmin() ? "一起分享阅读" : "<strong>阅读同行</strong>计划进度", "♧")}
+    ${statCard(isAdmin() ? "读者人数" : "累计归还", isAdmin() ? state.users.filter((item) => !item.isAdmin).length : returned, isAdmin() ? "一起分享阅读" : "<strong>心动狙击</strong>攻略进度", "♧")}
   </div>`;
   const latestPanel = `<section class="panel">
     <div class="panel-head"><div><h2>新近入藏</h2><p>也许下一本心头好，就在这里</p></div><button class="text-button" data-page="catalog">查看全部 →</button></div>
@@ -241,6 +245,7 @@ function readersPage() {
 }
 
 function render() {
+  updateMusicStage();
   const user = currentUser();
   document.querySelector("#user-name").textContent = user.name;
   document.querySelector("#user-avatar").textContent = Array.from(user.name)[0] ?? "读";
@@ -387,7 +392,76 @@ function returnBook(bookId) {
   if (book) book.available = true;
   const user = state.users.find((item) => item.id === loan.userId);
   if (user) user.returnedBooks = (user.returnedBooks ?? 0) + 1;
-  persist(); render(); showToast(`已归还《${book?.title ?? "图书"}》，阅读同行进度 +1。`);
+  persist(); render(); showToast(`已归还《${book?.title ?? "图书"}》，流川枫好感度 +1。`);
 }
+
+const bgm = document.querySelector("#bgm");
+const musicToggle = document.querySelector("#music-toggle");
+let musicEnabled = false;
+let musicStage = "begin";
+let musicRequest = 0;
+bgm.volume = 0.35;
+
+function updateMusicButton() {
+  const playing = musicEnabled && !bgm.paused;
+  musicToggle.textContent = playing ? "Ⅱ 暂停 BGM" : "♫ 开启 BGM";
+  musicToggle.setAttribute("aria-pressed", String(playing));
+}
+
+async function playMusic() {
+  const request = ++musicRequest;
+  try {
+    await bgm.play();
+    if (!musicEnabled) bgm.pause();
+  } catch (error) {
+    if (request !== musicRequest || error.name === "AbortError") return;
+    musicEnabled = false;
+    showToast("音乐暂未播放，请点击「开启 BGM」重试。");
+  }
+  updateMusicButton();
+}
+
+function updateMusicStage() {
+  const atEntrance = !document.querySelector("#welcome-screen").hidden;
+  const returned = currentUser().returnedBooks ?? 0;
+  const next = atEntrance || isAdmin() || returned <= 4 ? "begin" : returned >= 25 ? "ending" : "middle";
+  document.querySelector("#music-stage").textContent = { begin: "初遇 · 开场曲", middle: "靠近 · 攻略曲", ending: "心动 · 结局曲" }[next];
+  if (next === musicStage) return;
+  musicStage = next;
+  bgm.src = `assets/${next}.mp3`;
+  if (musicEnabled) void playMusic();
+}
+
+musicToggle.addEventListener("click", () => {
+  musicEnabled = !musicEnabled;
+  if (musicEnabled) void playMusic();
+  else { ++musicRequest; bgm.pause(); updateMusicButton(); }
+});
+bgm.addEventListener("play", updateMusicButton);
+bgm.addEventListener("pause", updateMusicButton);
+bgm.addEventListener("error", () => {
+  musicEnabled = false;
+  updateMusicButton();
+  showToast("BGM 加载失败，请检查音乐文件后重试。");
+});
+document.querySelector("#music-volume").addEventListener("input", (event) => {
+  bgm.volume = Number(event.target.value);
+});
+document.querySelector("#enter-library").addEventListener("click", () => {
+  document.querySelector("#welcome-screen").hidden = true;
+  document.querySelector("#library-app").hidden = false;
+  updateMusicStage();
+  musicEnabled = true;
+  void playMusic();
+  navigate("dashboard");
+  document.querySelector(".brand").focus();
+});
+document.querySelector("#show-guide").addEventListener("click", () => {
+  document.querySelector("#welcome-screen").hidden = false;
+  document.querySelector("#library-app").hidden = true;
+  updateMusicStage();
+  window.scrollTo({ top: 0 });
+  document.querySelector("#enter-library").focus();
+});
 
 initialize();

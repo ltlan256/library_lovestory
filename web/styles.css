@@ -14,6 +14,47 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #cc8f9e; outline-offset: 4px; }
+.welcome-screen { position: relative; display: grid; place-items: center; min-height: 100vh; padding: 48px 22px 100px; overflow: hidden; background: radial-gradient(ellipse at 15% 15%, #fce7eb 0, transparent 50%), radial-gradient(ellipse at 85% 85%, #dfede0 0, transparent 50%), #fbf9f3; }
+.welcome-card { position: relative; z-index: 1; width: min(100%, 660px); text-align: center; }
+.welcome-sticker { margin-bottom: 18px; font-size: 35px; letter-spacing: 14px; }
+.welcome-badge { display: inline-block; padding: 7px 15px; border: 1px solid #e9c9cf; border-radius: 30px; color: #a36074; background: #fff8fa; font-size: 11px; letter-spacing: 2px; }
+.welcome-greeting { margin: 23px 0 16px; color: #778578; font-size: 13px; line-height: 1.8; }
+.welcome-card h1 { margin-bottom: 20px; font-size: clamp(42px, 7vw, 68px); line-height: 1.22; font-weight: 800; letter-spacing: 2px; }
+.welcome-card h1 span { color: #b85c78; }
+.welcome-description { color: #7c8279; font-size: 13px; line-height: 2; }
+.welcome-guide { margin: 26px auto; padding: 23px 28px 17px; background: #ffffffc9; border: 1px solid #fff; border-radius: 20px; box-shadow: 0 14px 45px #645b4e08; text-align: left; }
+.welcome-guide h2 { margin-bottom: 18px; color: #9c6173; font-size: 15px; }
+.welcome-guide ol { margin: 0; padding-left: 25px; }
+.welcome-guide li { padding: 0 0 14px 6px; color: #b98291; }
+.welcome-guide li strong { display: block; color: #3e5546; font-size: 13px; }
+.welcome-guide li span { display: block; margin-top: 5px; color: #81877f; font-size: 12px; line-height: 1.7; }
+.welcome-guide p { margin: 1px 0 0; padding-top: 13px; border-top: 1px dashed #e2ded5; color: #969184; font-size: 11px; line-height: 1.8; }
+.enter-button { min-height: 49px !important; padding: 0 36px !important; border-radius: 30px !important; font-size: 14px !important; box-shadow: 0 8px 24px #3b765d24; }
+.welcome-footnote { margin: 15px 0 0; color: #9c9d92; font-size: 11px; line-height: 1.8; }
+.welcome-decoration { position: absolute; top: 15%; right: 8%; color: #d8b4be; font-size: 45px; line-height: 3; transform: rotate(12deg); opacity: .5; }
+.guide-button { margin: -18px 0 24px; padding: 10px; color: #a3677b; background: #fcf3f5; border: 1px solid #f4e3e9; border-radius: 9px; font-size: 11px; }
+.character-portrait { position: relative; margin: 18px 0 15px; overflow: hidden; border: 1px solid #eadfe2; border-radius: 12px; background: #fff; }
+.character-portrait img { display: block; width: 100%; height: auto; }
+.character-portrait figcaption { display: grid; gap: 6px; padding: 12px 14px; background: #fdf6f8; font-size: 11px; }
+.character-portrait figcaption span { color: #786c71; }
+.character-portrait figcaption b { color: #b4627d; font-weight: 500; }
+.music-player { position: fixed; z-index: 15; right: 20px; bottom: 16px; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 24px); padding: 10px 14px; background: #fffffff5; border: 1px solid #e5e9e1; border-radius: 30px; box-shadow: 0 6px 26px #304a3512; font-size: 10px; }
+.music-player button { padding: 5px 0; color: var(--green); background: none; border: 0; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.music-player > span { color: #9a7985; }
+.music-player label { display: flex; align-items: center; gap: 5px; color: #8b958b; }
+.music-player input { width: 65px; accent-color: #628a6b; }
+.app-shell { padding-bottom: 65px; }
+.toast { bottom: 85px !important; }
+@media (max-width: 760px) {
+  .welcome-screen { padding-top: 30px; }
+  .welcome-guide { padding: 20px; }
+  .welcome-decoration { right: -15px; }
+  .guide-button { margin: -15px 0 22px; padding: 8px 3px; font-size: 10px; line-height: 1.6; }
+  .music-player { right: 12px; gap: 8px; padding: 8px 12px; }
+  .music-player input { width: 48px; }
+}
 body { margin: 0; background: var(--canvas); color: var(--ink); font-size: 14px; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
