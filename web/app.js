@@ -1,4 +1,5 @@
 const STORAGE_KEY = "shiye-library-web-v1";
+const CATALOG_VERSION = 2;
 const DEMO_BOOKS = [
   { id: 1, title: "小王子", author: "安东尼·德·圣埃克苏佩里", category: "童话", year: 2018, available: true },
   { id: 2, title: "百年孤独", author: "加西亚·马尔克斯", category: "文学", year: 2011, available: false },
@@ -24,6 +25,7 @@ const state = {
   category: "全部分类",
   availability: "全部状态",
   editingBookId: null,
+  catalogVersion: undefined,
   toastTimer: null
 };
 let authenticated = false;
@@ -48,6 +50,14 @@ function parseBooks(text) {
 }
 
 async function initialize() {
+  let catalog;
+  try {
+    const response = await fetch("books.json");
+    if (!response.ok) throw new Error("读取书目失败");
+    catalog = await response.json();
+  } catch (error) {
+    showNotice("未能读取完整馆藏，暂时使用本地数据。请检查网页服务后刷新。");
+  }
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
     try {
@@ -56,6 +66,21 @@ async function initialize() {
       state.users = data.users;
       state.loans = data.loans;
       state.activeUserId = data.activeUserId ?? 2;
+      if (catalog && data.catalogVersion !== CATALOG_VERSION) {
+        const titles = new Set(state.books.map((book) => book.title));
+        const ids = new Set(state.books.map((book) => book.id));
+        let nextId = Math.max(250, ...ids) + 1;
+        for (const book of catalog.filter((item) => item.id > 100)) {
+          if (titles.has(book.title)) continue;
+          const id = ids.has(book.id) ? nextId++ : book.id;
+          state.books.push({ ...book, id });
+          titles.add(book.title);
+          ids.add(id);
+        }
+      }
+      normalizeInventory(catalog);
+      state.catalogVersion = catalog ? CATALOG_VERSION : data.catalogVersion;
+      persist();
       render();
       return;
     } catch (error) {
@@ -65,25 +90,41 @@ async function initialize() {
   }
 
   try {
-    const response = await fetch("books.json");
-    if (!response.ok) throw new Error(`读取书目失败（${response.status}）`);
-    const books = await response.json();
-    state.books = books.map((book) => ({ ...book, available: Boolean(book.available) }));
+    if (!catalog) throw new Error("完整馆藏不可用");
+    state.books = catalog.map((book) => ({ ...book }));
     state.users = DEMO_USERS.map((user) => ({ ...user }));
     state.loans = [];
+    normalizeInventory(catalog);
+    state.catalogVersion = CATALOG_VERSION;
     persist();
   } catch (error) {
     state.books = DEMO_BOOKS.map((book) => ({ ...book }));
     state.users = DEMO_USERS.map((user) => ({ ...user }));
     state.loans = [{ bookId: 2, userId: 2, borrower: "张三", date: "2026-10-18" }];
+    normalizeInventory();
     showNotice("未能读取书目文件，当前使用内置示例数据。请通过本地 HTTP 服务打开网页以加载完整馆藏。");
   }
   render();
 }
 
+function normalizeInventory(catalog = []) {
+  for (const book of state.books) {
+    const seed = catalog?.find((item) => item.title === book.title);
+    const quantity = book.quantity ?? seed?.quantity ?? (1 + Math.floor(Math.random() * 3));
+    book.quantity = Math.max(1, Math.min(3, Number.isInteger(quantity) ? quantity : 1));
+    // Existing loans must remain returnable even if old data exceeds the new stock limit.
+    book.available = availableCopies(book) > 0;
+  }
+}
+
+function availableCopies(book) {
+  return Math.max(0, book.quantity - state.loans.filter((loan) => loan.bookId === book.id).length);
+}
+
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    books: state.books, users: state.users, loans: state.loans, activeUserId: state.activeUserId
+    books: state.books, users: state.users, loans: state.loans, activeUserId: state.activeUserId,
+    catalogVersion: state.catalogVersion
   }));
 }
 
@@ -131,16 +172,18 @@ function bookRows(books, options = {}) {
     const controls = isAdmin()
       ? `<button class="text-button" data-action="edit-book" data-id="${book.id}">编辑</button>
          <button class="text-button" data-action="delete-book" data-id="${book.id}">删除</button>`
-      : book.available
+      : state.loans.some((loan) => loan.bookId === book.id && loan.userId === currentUser().id)
+        ? `<button class="button button-quiet button-small" data-action="return" data-id="${book.id}">归还</button>`
+        : availableCopies(book) > 0
         ? `<button class="button button-primary button-small" data-action="borrow" data-id="${book.id}">借阅</button>`
-        : `<button class="button button-quiet button-small" data-action="return" data-id="${book.id}" ${!state.loans.some((loan) => loan.bookId === book.id && loan.userId === currentUser().id) ? "disabled" : ""}>归还</button>`;
+        : `<button class="button button-quiet button-small" disabled>已借完</button>`;
     const actionMarkup = options.showActions === false ? "" : `<td><div class="row-actions">${controls}</div></td>`;
     return `<tr>
       <td><div class="book-cell">${coverMarkup(book, index)}<div><div class="book-title">${escapeHtml(book.title)}</div><div class="book-author">${escapeHtml(book.author)}</div></div></div></td>
       <td><span class="category-tag">${escapeHtml(book.category)}</span></td>
-      <td>${book.year}</td>
-      <td><span class="status-tag ${book.available ? "available" : "borrowed"}">${book.available ? "在馆" : "借出中"}</span></td>
-      ${isAdmin() ? `<td>${escapeHtml(state.loans.find((loan) => loan.bookId === book.id)?.borrower ?? "—")}</td>` : ""}
+      <td>${book.year || "—"}</td>
+      <td><span class="status-tag ${availableCopies(book) > 0 ? "available" : "borrowed"}">${availableCopies(book) > 0 ? "在馆" : "已借完"} · ${availableCopies(book)} / ${book.quantity} 本</span></td>
+      ${isAdmin() ? `<td>${escapeHtml(state.loans.filter((loan) => loan.bookId === book.id).map((loan) => loan.borrower).join("、") || "—")}</td>` : ""}
       ${actionMarkup}
     </tr>`;
   }).join("");
@@ -180,13 +223,15 @@ function statCard(label, value, foot, icon) {
 
 function dashboardPage() {
   const user = currentUser();
-  const borrowed = state.books.length - state.books.filter((book) => book.available).length;
+  const borrowed = state.loans.length;
+  const totalCopies = state.books.reduce((total, book) => total + book.quantity, 0);
+  const remainingCopies = state.books.reduce((total, book) => total + availableCopies(book), 0);
   const onLoan = isAdmin() ? state.loans.length : state.loans.filter((loan) => loan.userId === user.id).length;
   const returned = user.returnedBooks ?? 0;
   const latest = [...state.books].sort((a, b) => b.id - a.id).slice(0, 5);
   const stats = `<div class="stats-grid">
-    ${statCard("馆藏总量", state.books.length, "<strong>持续更新</strong> · 精选藏书", "▤")}
-    ${statCard("当前可借", state.books.filter((book) => book.available).length, "<strong>欢迎</strong>来发现下一本", "⌕")}
+    ${statCard("馆藏种类", state.books.length, `共 <strong>${totalCopies}</strong> 本 · 每种 1–3 本`, "▤")}
+    ${statCard("当前可借 / 本", remainingCopies, "<strong>欢迎</strong>来发现下一本", "⌕")}
     ${statCard(isAdmin() ? "借阅记录" : "我的在借", onLoan, isAdmin() ? "所有读者的在借记录" : "记得按时归还哦", "↗")}
     ${statCard(isAdmin() ? "读者人数" : "累计归还", isAdmin() ? state.users.filter((item) => !item.isAdmin).length : returned, isAdmin() ? "一起分享阅读" : "<strong>心动狙击</strong>攻略进度", "♧")}
   </div>`;
@@ -213,16 +258,16 @@ function filteredBooks() {
   return state.books.filter((book) => {
     const matchesQuery = !query || [book.title, book.author, book.category, String(book.id)].some((value) => String(value).toLocaleLowerCase().includes(query));
     const matchesCategory = state.category === "全部分类" || book.category === state.category;
-    const matchesStatus = state.availability === "全部状态" || (state.availability === "在馆" ? book.available : !book.available);
+    const matchesStatus = state.availability === "全部状态" || (state.availability === "在馆" ? availableCopies(book) > 0 : state.loans.some((loan) => loan.bookId === book.id));
     return matchesQuery && matchesCategory && matchesStatus;
   }).sort((a, b) => a.id - b.id);
 }
 
 function catalogPage() {
   const categories = ["全部分类", ...new Set(state.books.map((book) => book.category).filter(Boolean).sort((a, b) => a.localeCompare(b, "zh-CN")))];
-  content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">THE COLLECTION</div><h1>馆藏图书</h1><p class="subheading">在 ${state.books.length} 本藏书里，找到此刻想读的那一本。</p></div>${isAdmin() ? '<button class="button button-primary" data-action="add-book">＋ 添加图书</button>' : ""}</div>
+  content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">THE COLLECTION</div><h1>馆藏图书</h1><p class="subheading">在 ${state.books.length} 种藏书里，找到此刻想读的那一本。</p></div>${isAdmin() ? '<button class="button button-primary" data-action="add-book">＋ 添加图书</button>' : ""}</div>
     <section class="panel"><div class="panel-head"><div><h2>所有图书</h2><p>按书名、作者或分类检索</p></div></div>
-    <div class="toolbar" style="padding:0 20px"><div class="toolbar-left"><label class="search-box"><input id="book-search" type="search" placeholder="搜索书名、作者或分类…" value="${escapeHtml(state.query)}"></label><select id="category-filter" class="select-control" aria-label="分类筛选">${categories.map((item) => `<option ${state.category === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select><select id="status-filter" class="select-control" aria-label="状态筛选">${["全部状态", "在馆", "借出中"].map((item) => `<option ${state.availability === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><span class="result-count" id="result-count">${filteredBooks().length} 本图书</span></div>
+    <div class="toolbar" style="padding:0 20px"><div class="toolbar-left"><label class="search-box"><input id="book-search" type="search" placeholder="搜索书名、作者或分类…" value="${escapeHtml(state.query)}"></label><select id="category-filter" class="select-control" aria-label="分类筛选">${categories.map((item) => `<option ${state.category === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select><select id="status-filter" class="select-control" aria-label="状态筛选">${["全部状态", "在馆", "借出中"].map((item) => `<option ${state.availability === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><span class="result-count" id="result-count">${filteredBooks().length} 种图书</span></div>
     <div id="catalog-results">${tableMarkup(filteredBooks())}</div></section>`;
 }
 
@@ -279,7 +324,8 @@ function openBookDialog(book = null) {
     <div class="form-field"><label for="book-title">书名</label><input class="form-control" id="book-title" name="title" required maxlength="120" value="${escapeHtml(book?.title ?? "")}"></div>
     <div class="form-field"><label for="book-author">作者</label><input class="form-control" id="book-author" name="author" required maxlength="120" value="${escapeHtml(book?.author ?? "")}"></div>
     <div class="form-field"><label for="book-category">分类</label><input class="form-control" id="book-category" name="category" required maxlength="40" value="${escapeHtml(book?.category ?? "")}"></div>
-    <div class="form-field"><label for="book-year">出版年份</label><input class="form-control" id="book-year" name="year" type="number" min="0" max="9999" required value="${book?.year ?? new Date().getFullYear()}"></div>`;
+    <div class="form-field"><label for="book-year">出版年份</label><input class="form-control" id="book-year" name="year" type="number" min="0" max="9999" required value="${book?.year ?? new Date().getFullYear()}"></div>
+    <div class="form-field"><label for="book-quantity">馆藏数量（1–3 本）</label><input class="form-control" id="book-quantity" name="quantity" type="number" min="1" max="3" required value="${book?.quantity ?? (1 + Math.floor(Math.random() * 3))}"></div>`;
   dialog.showModal();
   document.querySelector("#book-title").focus();
 }
@@ -347,7 +393,7 @@ function refreshCatalogResults() {
   if (!results) return;
   const books = filteredBooks();
   results.innerHTML = tableMarkup(books);
-  document.querySelector("#result-count").textContent = `${books.length} 本图书`;
+  document.querySelector("#result-count").textContent = `${books.length} 种图书`;
 }
 
 form.addEventListener("submit", (event) => {
@@ -366,6 +412,9 @@ form.addEventListener("submit", (event) => {
   const author = String(values.get("author")).trim();
   const category = String(values.get("category")).trim();
   const year = Number(values.get("year"));
+  const quantity = Number(values.get("quantity"));
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 3) return showToast("馆藏数量必须为 1–3 本。");
+  if (state.editingBookId && state.loans.filter((loan) => loan.bookId === state.editingBookId).length > quantity) return showToast("馆藏数量不能小于当前已借出的数量。");
   if (!title || !author || !category || !Number.isInteger(year) || year < 0 || year > 9999) {
     return showToast("请检查图书信息后再保存。");
   }
@@ -374,10 +423,11 @@ form.addEventListener("submit", (event) => {
   }
   if (state.editingBookId) {
     const book = state.books.find((item) => item.id === state.editingBookId);
-    Object.assign(book, { title, author, category, year });
+    Object.assign(book, { title, author, category, year, quantity });
+    book.available = availableCopies(book) > 0;
   } else {
     const id = Math.max(0, ...state.books.map((book) => book.id)) + 1;
-    state.books.push({ id, title, author, category, year, available: true });
+    state.books.push({ id, title, author, category, year, quantity, available: true });
   }
   persist(); dialog.close(); render(); showToast(state.editingBookId ? "图书信息已更新。" : "新书已加入馆藏。");
 });
@@ -385,10 +435,11 @@ form.addEventListener("submit", (event) => {
 function borrowBook(bookId) {
   if (!authenticated || isAdmin()) return;
   const book = state.books.find((item) => item.id === bookId);
-  if (!book || !book.available) return showToast("这本书目前不可借阅。");
+  if (!book || availableCopies(book) < 1) return showToast("这本书目前已借完。");
   const user = currentUser();
-  book.available = false;
+  if (state.loans.some((loan) => loan.bookId === bookId && loan.userId === user.id)) return showToast("你已借过这本书，请先归还后再借阅。");
   state.loans.push({ bookId, userId: user.id, borrower: user.name, date: formatDate() });
+  book.available = availableCopies(book) > 0;
   persist(); render(); showToast(`《${book.title}》已加入你的借阅。`);
 }
 
@@ -398,7 +449,7 @@ function returnBook(bookId) {
   if (loanIndex < 0) return showToast("没有找到这本书的有效借阅记录。");
   const [loan] = state.loans.splice(loanIndex, 1);
   const book = state.books.find((item) => item.id === bookId);
-  if (book) book.available = true;
+  if (book) book.available = availableCopies(book) > 0;
   const user = state.users.find((item) => item.id === loan.userId);
   if (user) user.returnedBooks = (user.returnedBooks ?? 0) + 1;
   persist(); render(); showToast(`已归还《${book?.title ?? "图书"}》，流川枫好感度 +1。`);
