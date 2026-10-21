@@ -190,6 +190,30 @@ async function launch(saved, offline = false, route = '', now = null) {
   assert.ok(fs.statSync('web/assets/nailong.png').size > 0);
   console.log('PASS: character choice, pink/yellow routes, portrait switching, separate persisted progress and return attribution');
 
+  const story = await launch(undefined, false, '?character=rukawa');
+  story.element('#enter-library').handlers.click();
+  assert.equal(story.element('#story-screen').hidden, false);
+  assert.equal(story.element('#welcome-screen').hidden, true);
+  assert.equal(story.element('#login-screen').hidden, true);
+  assert.equal(story.element('#library-app').hidden, true);
+  assert.equal(story.run('musicStage'), 'begin');
+  story.element('#story-back').handlers.click();
+  assert.equal(story.element('#story-screen').hidden, true);
+  assert.equal(story.element('#welcome-screen').hidden, false);
+  story.element('#enter-library').handlers.click();
+  story.element('#story-continue').handlers.click();
+  assert.equal(story.element('#story-screen').hidden, true);
+  assert.equal(story.element('#login-screen').hidden, false, 'story continuation preserves the login requirement');
+  story.run('authenticated = true; state.activeUserId = 2; selectCharacter("rukawa");');
+  story.element('#enter-library').handlers.click();
+  story.element('#story-continue').handlers.click();
+  assert.equal(story.element('#library-app').hidden, false);
+  story.run('authenticated = false; selectCharacter("nailong");');
+  story.element('#enter-library').handlers.click();
+  assert.equal(story.element('#story-screen').hidden, true, 'nailong does not show the rukawa story');
+  assert.equal(story.element('#login-screen').hidden, false);
+  console.log('PASS: opening story, back/continue, login gate, replay and character-specific flow');
+
   const historyFlow = await launch();
   historyFlow.run('authenticated = true; state.activeUserId = 2; navigate("loans");');
   assert.match(historyFlow.element('#page-content').innerHTML, /href="#loan-history"/);

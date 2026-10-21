@@ -162,6 +162,7 @@ function activeLoanCount(user = currentUser()) {
 
 function selectCharacter(id) {
   if (!CHARACTERS[id]) return;
+  document.querySelector("#story-screen").hidden = true;
   state.character = id;
   const character = CHARACTERS[id];
   document.documentElement?.setAttribute("data-character", id);
@@ -183,6 +184,7 @@ function selectCharacter(id) {
 }
 
 function showCharacterSelection() {
+  document.querySelector("#story-screen").hidden = true;
   document.querySelector("#character-screen").hidden = false;
   document.querySelector("#welcome-screen").hidden = true;
   document.querySelector("#login-screen").hidden = true;
@@ -661,7 +663,7 @@ async function playMusic() {
 }
 
 function updateMusicStage() {
-  const atEntrance = !document.querySelector("#character-screen").hidden || !document.querySelector("#welcome-screen").hidden || !document.querySelector("#login-screen").hidden;
+  const atEntrance = !document.querySelector("#character-screen").hidden || !document.querySelector("#welcome-screen").hidden || !document.querySelector("#story-screen").hidden || !document.querySelector("#login-screen").hidden;
   const returned = characterProgress();
   const next = atEntrance || isAdmin() || returned <= 4 ? "begin" : returned >= 25 ? "ending" : "middle";
   document.querySelector("#music-stage").textContent = { begin: "初遇 · 开场曲", middle: "靠近 · 攻略曲", ending: "心动 · 结局曲" }[next];
@@ -686,13 +688,38 @@ bgm.addEventListener("error", () => {
 document.querySelector("#music-volume").addEventListener("input", (event) => {
   bgm.volume = Number(event.target.value);
 });
-document.querySelector("#enter-library").addEventListener("click", () => {
+function continueFromOpening() {
   if (authenticated) enterLibrary();
   else showLogin();
+}
+
+function showOpeningStory() {
+  document.querySelector("#character-screen").hidden = true;
+  document.querySelector("#welcome-screen").hidden = true;
+  document.querySelector("#login-screen").hidden = true;
+  document.querySelector("#library-app").hidden = true;
+  document.querySelector("#story-screen").hidden = false;
+  updateMusicStage();
+  window.scrollTo({ top: 0 });
+  document.querySelector("#story-title").focus();
+}
+
+document.querySelector("#story-continue").addEventListener("click", continueFromOpening);
+document.querySelector("#story-back").addEventListener("click", () => {
+  document.querySelector("#story-screen").hidden = true;
+  document.querySelector("#welcome-screen").hidden = false;
+  updateMusicStage();
+  window.scrollTo({ top: 0 });
+  document.querySelector("#enter-library").focus();
+});
+document.querySelector("#enter-library").addEventListener("click", () => {
+  if (state.character === "rukawa") showOpeningStory();
+  else continueFromOpening();
   musicEnabled = true;
   void playMusic();
 });
 document.querySelector("#show-guide").addEventListener("click", () => {
+  document.querySelector("#story-screen").hidden = true;
   document.querySelector("#welcome-screen").hidden = false;
   document.querySelector("#login-screen").hidden = true;
   document.querySelector("#library-app").hidden = true;
@@ -739,6 +766,7 @@ function updateLoginMode() {
 }
 
 function showLogin() {
+  document.querySelector("#story-screen").hidden = true;
   document.querySelector("#character-screen").hidden = true;
   document.querySelector("#welcome-screen").hidden = true;
   document.querySelector("#login-screen").hidden = false;
@@ -752,6 +780,7 @@ function showLogin() {
 
 function enterLibrary() {
   if (!authenticated) return;
+  document.querySelector("#story-screen").hidden = true;
   document.querySelector("#character-screen").hidden = true;
   document.querySelector("#welcome-screen").hidden = true;
   document.querySelector("#login-screen").hidden = true;
