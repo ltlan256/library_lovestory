@@ -31,6 +31,7 @@ const state = {
 let authenticated = false;
 let registering = false;
 let adminSetupAvailable = false;
+let pendingBorrowBookId = null;
 
 const content = document.querySelector("#page-content");
 const dialog = document.querySelector("#edit-dialog");
@@ -217,8 +218,8 @@ function progressMarkup(user) {
   </section>`;
 }
 
-function statCard(label, value, foot, icon) {
-  return `<article class="stat-card"><div class="stat-top"><span>${label}</span><span class="stat-icon">${icon}</span></div><div class="stat-value">${value}</div><div class="stat-foot">${foot}</div></article>`;
+function statCard(label, value, foot, icon, page, availability = "") {
+  return `<a class="stat-card" href="#${page}" data-page="${page}" data-availability="${availability}"><div class="stat-top"><span>${label}</span><span class="stat-icon">${icon}</span></div><div class="stat-value">${value}</div><div class="stat-foot">${foot}</div><span class="stat-link">点击查看 →</span></a>`;
 }
 
 function dashboardPage() {
@@ -230,10 +231,10 @@ function dashboardPage() {
   const returned = user.returnedBooks ?? 0;
   const latest = [...state.books].sort((a, b) => b.id - a.id).slice(0, 5);
   const stats = `<div class="stats-grid">
-    ${statCard("馆藏种类", state.books.length, `共 <strong>${totalCopies}</strong> 本 · 每种 1–3 本`, "▤")}
-    ${statCard("当前可借 / 本", remainingCopies, "<strong>欢迎</strong>来发现下一本", "⌕")}
-    ${statCard(isAdmin() ? "借阅记录" : "我的在借", onLoan, isAdmin() ? "所有读者的在借记录" : "记得按时归还哦", "↗")}
-    ${statCard(isAdmin() ? "读者人数" : "累计归还", isAdmin() ? state.users.filter((item) => !item.isAdmin).length : returned, isAdmin() ? "一起分享阅读" : "<strong>心动狙击</strong>攻略进度", "♧")}
+    ${statCard("馆藏种类", state.books.length, `共 <strong>${totalCopies}</strong> 本 · 每种 1–3 本`, "▤", "catalog", "全部状态")}
+    ${statCard("当前可借 / 本", remainingCopies, "查看当前有库存的图书", "⌕", "catalog", "在馆")}
+    ${statCard(isAdmin() ? "借阅记录" : "我的在借", onLoan, isAdmin() ? "所有读者的在借记录" : "查看在借图书并归还", "↗", "loans")}
+    ${statCard(isAdmin() ? "读者人数" : "累计归还", isAdmin() ? state.users.filter((item) => !item.isAdmin).length : returned, isAdmin() ? "查看读者档案" : "查看好感度与攻略进度", "♧", isAdmin() ? "readers" : "progress")}
   </div>`;
   const latestPanel = `<section class="panel">
     <div class="panel-head"><div><h2>新近入藏</h2><p>也许下一本心头好，就在这里</p></div><button class="text-button" data-page="catalog">查看全部 →</button></div>
@@ -241,6 +242,7 @@ function dashboardPage() {
   </section>`;
   content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">A GOOD DAY TO READ</div><h1>${isAdmin() ? "你好，管理员。" : `你好，${escapeHtml(user.name)}。`}</h1><p class="subheading">${isAdmin() ? "今天也来看看，书架与读者们有什么新故事。" : "今天想读点什么？你喜欢的故事，可能就在下一页。"}</p></div><div class="date-tag"><span>✳</span>${new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long", day: "numeric", weekday: "long" }).format(new Date())}</div></div>
     ${stats}
+    <section class="panel search-entry"><div><h2>想借什么？先搜一下</h2><p>搜索书名、作者或分类，找到后核对信息再确认借阅。</p></div><form id="catalog-search-form" class="toolbar-left"><label class="search-box"><span class="sr-only">搜索图书</span><input id="book-search" type="search" placeholder="输入书名、作者或分类" value="${escapeHtml(state.query)}"></label><button class="button button-primary" type="submit">搜索图书 →</button></form></section>
     <div class="dashboard-grid">${latestPanel}${!isAdmin() ? progressMarkup(user) : adminActivityPanel(borrowed)}</div>`;
 }
 
@@ -267,7 +269,8 @@ function catalogPage() {
   const categories = ["全部分类", ...new Set(state.books.map((book) => book.category).filter(Boolean).sort((a, b) => a.localeCompare(b, "zh-CN")))];
   content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">THE COLLECTION</div><h1>馆藏图书</h1><p class="subheading">在 ${state.books.length} 种藏书里，找到此刻想读的那一本。</p></div>${isAdmin() ? '<button class="button button-primary" data-action="add-book">＋ 添加图书</button>' : ""}</div>
     <section class="panel"><div class="panel-head"><div><h2>所有图书</h2><p>按书名、作者或分类检索</p></div></div>
-    <div class="toolbar" style="padding:0 20px"><div class="toolbar-left"><label class="search-box"><input id="book-search" type="search" placeholder="搜索书名、作者或分类…" value="${escapeHtml(state.query)}"></label><select id="category-filter" class="select-control" aria-label="分类筛选">${categories.map((item) => `<option ${state.category === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select><select id="status-filter" class="select-control" aria-label="状态筛选">${["全部状态", "在馆", "借出中"].map((item) => `<option ${state.availability === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><span class="result-count" id="result-count">${filteredBooks().length} 种图书</span></div>
+    <p class="borrow-steps">① 搜索图书 <span>→</span> ② 点击借阅 <span>→</span> ③ 核对并确认 <span>→</span> ④ 借阅成功</p>
+    <div class="toolbar" style="padding:0 20px"><form id="catalog-search-form" class="toolbar-left"><label class="search-box"><span class="sr-only">搜索书名、作者或分类</span><input id="book-search" type="search" placeholder="搜索书名、作者或分类…" value="${escapeHtml(state.query)}"></label><button class="button button-primary" type="submit">搜索</button><select id="category-filter" class="select-control" aria-label="分类筛选">${categories.map((item) => `<option ${state.category === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select><select id="status-filter" class="select-control" aria-label="状态筛选">${["全部状态", "在馆", "借出中"].map((item) => `<option ${state.availability === item ? "selected" : ""}>${item}</option>`).join("")}</select></form><span class="result-count" id="result-count">${filteredBooks().length} 种图书</span></div>
     <div id="catalog-results">${tableMarkup(filteredBooks())}</div></section>`;
 }
 
@@ -300,13 +303,14 @@ function render() {
   document.querySelector("#user-avatar").textContent = Array.from(user.name)[0] ?? "读";
   document.querySelector("#user-role").textContent = isAdmin() ? "管理员 · 点击退出" : "读者 · 点击退出";
   document.querySelectorAll(".admin-only").forEach((item) => item.classList.toggle("hidden", !isAdmin()));
-  const pageLabels = { dashboard: "总览", catalog: "馆藏图书", loans: isAdmin() ? "借阅管理" : "我的借阅", readers: "读者档案" };
+  const pageLabels = { dashboard: "总览", catalog: "馆藏图书", loans: isAdmin() ? "借阅管理" : "我的借阅", readers: "读者档案", progress: "攻略进度" };
   if (state.page === "readers" && !isAdmin()) state.page = "dashboard";
   document.querySelector("#page-title").textContent = pageLabels[state.page];
   document.querySelectorAll("[data-page]").forEach((item) => item.classList.toggle("active", item.dataset.page === state.page && item.classList.contains("nav-link")));
   if (state.page === "catalog") catalogPage();
   else if (state.page === "loans") loansPage();
   else if (state.page === "readers") readersPage();
+  else if (state.page === "progress") content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">YOUR STORY</div><h1>你的心动攻略进度</h1><p class="subheading">每成功归还 1 本，好感度 +1。累计归还 25 本，解锁特别结局。</p></div><button class="button button-quiet" data-page="dashboard">返回总览</button></div><div class="progress-detail">${progressMarkup(user)}</div>`;
   else dashboardPage();
 }
 
@@ -344,6 +348,11 @@ document.addEventListener("click", (event) => {
   if (!button) return;
   if (button.dataset.page) {
     event.preventDefault();
+    if (button.dataset.availability) {
+      state.query = "";
+      state.category = "全部分类";
+      state.availability = button.dataset.availability;
+    }
     navigate(button.dataset.page);
     return;
   }
@@ -363,7 +372,15 @@ document.addEventListener("click", (event) => {
       persist(); render(); showToast("图书已删除。");
     }
   } else if (action === "add-reader") openReaderDialog();
-  else if (action === "borrow") borrowBook(id);
+  else if (action === "borrow") openBorrowDialog(id);
+  else if (action === "cancel-borrow" || action === "continue-search") {
+    document.querySelector("#borrow-dialog").close();
+    document.querySelector("#book-search")?.focus();
+  }
+  else if (action === "view-borrowed") {
+    document.querySelector("#borrow-dialog").close();
+    navigate("loans");
+  }
   else if (action === "return") returnBook(id);
 });
 
@@ -441,7 +458,58 @@ function borrowBook(bookId) {
   state.loans.push({ bookId, userId: user.id, borrower: user.name, date: formatDate() });
   book.available = availableCopies(book) > 0;
   persist(); render(); showToast(`《${book.title}》已加入你的借阅。`);
+  return true;
 }
+
+function openBorrowDialog(bookId) {
+  if (!authenticated || isAdmin()) return;
+  const book = state.books.find((item) => item.id === bookId);
+  if (!book || availableCopies(book) < 1) return showToast("这本书目前已借完，请选择其他图书。");
+  if (state.loans.some((loan) => loan.bookId === bookId && loan.userId === currentUser().id)) return showToast("你已借过这本书，可在「我的借阅」中查看。");
+  pendingBorrowBookId = bookId;
+  document.querySelector("#borrow-form").hidden = false;
+  document.querySelector("#borrow-success").hidden = true;
+  document.querySelector("#borrow-agreement").checked = false;
+  document.querySelector("#confirm-borrow").disabled = true;
+  document.querySelector("#borrow-error").hidden = true;
+  document.querySelector("#borrow-details").innerHTML = `<div class="borrow-book">${coverMarkup(book, book.id)}<div><h3>《${escapeHtml(book.title)}》</h3><p>${escapeHtml(book.author)} · ${escapeHtml(book.category)}</p></div></div><dl class="borrow-summary"><div><dt>借阅人</dt><dd>${escapeHtml(currentUser().name)}</dd></div><div><dt>借阅数量</dt><dd>1 本</dd></div><div><dt>当前可借</dt><dd>${availableCopies(book)} / ${book.quantity} 本</dd></div><div><dt>借阅日期</dt><dd>${formatDate()}</dd></div></dl><p class="borrow-note">确认后将占用 1 本库存。借阅记录可在「我的借阅」中查看，成功归还后好感度 +1。</p>`;
+  document.querySelector("#borrow-dialog").showModal();
+}
+
+document.addEventListener("submit", (event) => {
+  if (event.target.id !== "catalog-search-form") return;
+  event.preventDefault();
+  if (!authenticated) return;
+  state.query = document.querySelector("#book-search").value.trim();
+  if (state.page !== "catalog") {
+    state.category = "全部分类";
+    state.availability = "全部状态";
+  }
+  navigate("catalog");
+  document.querySelector("#book-search").focus();
+});
+document.querySelector("#borrow-agreement").addEventListener("change", (event) => {
+  document.querySelector("#confirm-borrow").disabled = !event.target.checked;
+});
+document.querySelector("#borrow-dialog").addEventListener("close", () => {
+  pendingBorrowBookId = null;
+});
+document.querySelector("#borrow-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (pendingBorrowBookId === null || !document.querySelector("#borrow-agreement").checked) return;
+  const bookId = pendingBorrowBookId;
+  const book = state.books.find((item) => item.id === bookId);
+  if (!borrowBook(bookId)) {
+    const error = document.querySelector("#borrow-error");
+    error.textContent = "借阅未完成，图书库存或借阅状态已变化，请关闭后重新选择。";
+    error.hidden = false;
+    return;
+  }
+  pendingBorrowBookId = null;
+  document.querySelector("#borrow-form").hidden = true;
+  document.querySelector("#borrow-success").hidden = false;
+  document.querySelector("#borrow-receipt").textContent = `《${book.title}》已借阅 1 本。你可以继续搜索下一本，或前往「我的借阅」查看。`;
+});
 
 function returnBook(bookId) {
   if (!authenticated || isAdmin()) return;

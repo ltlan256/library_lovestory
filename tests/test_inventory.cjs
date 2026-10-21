@@ -8,17 +8,22 @@ const storageKey = 'shiye-library-web-v1';
 async function launch(saved, offline = false) {
   const storage = new Map(saved ? [[storageKey, JSON.stringify(saved)]] : []);
   const nodes = new Map();
+  const documentHandlers = {};
   const element = id => {
     if (!nodes.has(id)) nodes.set(id, {
       hidden: id !== '#welcome-screen', value: '', textContent: '', innerHTML: '',
       classList: { add() {}, remove() {}, toggle() {} },
-      addEventListener() {}, setAttribute() {}, focus() {}, pause() {},
+      handlers: {},
+      addEventListener(name, handler) { this.handlers[name] = handler; },
+      showModal() { this.open = true; },
+      close() { this.open = false; this.handlers.close?.(); },
+      setAttribute() {}, focus() {}, pause() {},
       async play() {}
     });
     return nodes.get(id);
   };
   const context = vm.createContext({
-    document: { querySelector: element, querySelectorAll: () => [], addEventListener() {} },
+    document: { querySelector: element, querySelectorAll: () => [], addEventListener: (name, handler) => { documentHandlers[name] = handler; } },
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     window: { scrollTo() {} }, setTimeout: () => 0, clearTimeout() {},
     fetch: async url => {
@@ -28,7 +33,11 @@ async function launch(saved, offline = false) {
   });
   vm.runInContext(source, context);
   await new Promise(resolve => setImmediate(resolve));
-  return { run: code => vm.runInContext(code, context), saved: () => JSON.parse(storage.get(storageKey)) };
+  return {
+    run: code => vm.runInContext(code, context), saved: () => JSON.parse(storage.get(storageKey)), element,
+    click: dataset => documentHandlers.click({ preventDefault() {}, target: { closest: () => ({ dataset, matches: () => false }) } }),
+    submitSearch: () => documentHandlers.submit({ preventDefault() {}, target: { id: 'catalog-search-form' } })
+  };
 }
 
 (async () => {
@@ -78,5 +87,57 @@ async function launch(saved, offline = false) {
   assert.equal(offline.saved().catalogVersion, undefined);
   const recovered = await launch(offline.saved());
   assert.equal(recovered.run('state.books.length'), 251, 'migration retries after network recovery');
+
+  const flow = await launch();
+  flow.run('authenticated = true; state.activeUserId = 2; navigate("dashboard");');
+  assert.equal((flow.element('#page-content').innerHTML.match(/class="stat-card" href=/g) || []).length, 4);
+  flow.click({ page: 'catalog', availability: '在馆' });
+  assert.equal(flow.run('state.page'), 'catalog');
+  assert.equal(flow.run('state.availability'), '在馆');
+  flow.click({ page: 'catalog', availability: '全部状态' });
+  assert.equal(flow.run('state.availability'), '全部状态');
+  flow.click({ page: 'loans' });
+  assert.equal(flow.run('state.page'), 'loans');
+  flow.click({ page: 'progress' });
+  assert.equal(flow.run('state.page'), 'progress');
+  flow.click({ page: 'dashboard' });
+  flow.element('#book-search').value = catalog[0].title;
+  flow.submitSearch();
+  assert.equal(flow.run('state.page'), 'catalog');
+  assert.ok(flow.run('filteredBooks().some(book => book.id === 1)'));
+  flow.click({ action: 'borrow', id: '1' });
+  assert.equal(flow.element('#borrow-dialog').open, true);
+  assert.equal(flow.run('state.loans.length'), 0, 'opening confirmation must not borrow the book');
+  assert.equal(flow.element('#confirm-borrow').disabled, true);
+  flow.element('#borrow-form').handlers.submit({ preventDefault() {} });
+  assert.equal(flow.run('state.loans.length'), 0, 'unchecked confirmation cannot borrow');
+  flow.click({ action: 'cancel-borrow' });
+  assert.equal(flow.run('pendingBorrowBookId'), null);
+  assert.equal(flow.run('state.loans.length'), 0, 'cancel must keep stock unchanged');
+  flow.click({ action: 'borrow', id: '1' });
+  flow.element('#borrow-agreement').checked = true;
+  flow.element('#borrow-agreement').handlers.change({ target: { checked: true } });
+  assert.equal(flow.element('#confirm-borrow').disabled, false);
+  flow.element('#borrow-form').handlers.submit({ preventDefault() {} });
+  flow.element('#borrow-form').handlers.submit({ preventDefault() {} });
+  assert.equal(flow.run('state.loans.length'), 1, 'double submit creates only one loan');
+  assert.equal(flow.element('#borrow-success').hidden, false);
+  assert.equal(flow.run('state.query'), catalog[0].title, 'search is preserved after borrowing');
+  flow.click({ action: 'view-borrowed' });
+  assert.equal(flow.run('state.page'), 'loans');
+  assert.equal(flow.element('#borrow-dialog').open, false);
+  // Stock changes while a confirmation is open must be rechecked on submission.
+  flow.run('returnBook(1); state.books[0].quantity = 1;');
+  flow.click({ action: 'borrow', id: '1' });
+  flow.run('state.loans.push({ bookId: 1, userId: 99 });');
+  flow.element('#borrow-agreement').checked = true;
+  flow.element('#borrow-form').handlers.submit({ preventDefault() {} });
+  assert.equal(flow.run('state.loans.length'), 1);
+  assert.equal(flow.element('#borrow-error').hidden, false);
+  flow.click({ action: 'cancel-borrow' });
+  flow.run('state.activeUserId = 1; navigate("dashboard");');
+  flow.click({ page: 'readers' });
+  assert.equal(flow.run('state.page'), 'readers');
+  console.log('PASS: dashboard links, search, confirmation, cancel, explicit agreement, duplicate submit, success navigation and stock recheck');
   console.log('PASS: 250 titles, 1–3 copies, stock depletion/recovery, duplicate borrow/return protection, stable refresh and legacy migration');
 })().catch(error => { console.error(error); process.exitCode = 1; });
