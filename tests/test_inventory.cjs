@@ -60,6 +60,12 @@ async function launch(saved, offline = false, route = '', now = null) {
   assert.deepEqual([...new Set(catalog.map(book => book.quantity))].sort(), [1, 2, 3]);
 
   const fresh = await launch();
+  assert.equal(fresh.run('validateLoginValues({ name: "张三", studentId: "000123", password: "123456" })'), null);
+  assert.equal(fresh.run('validateLoginValues({ name: "Anne-Marie", studentId: "123", password: "abc123" })'), null);
+  for (const [field, value] of [['name', '张三123'], ['name', '123456'], ['name', '张🙂'], ['studentId', 'abc123'], ['studentId', '12 34'], ['studentId', '１２３'], ['password', '12345']]) {
+    const values = { name: '张三', studentId: '000123', password: '123456', [field]: value };
+    assert.ok(fresh.run(`validateLoginValues(${JSON.stringify(values)})`), `invalid ${field} is rejected before submission`);
+  }
   assert.equal(fresh.run('state.books.length'), 250);
   assert.equal(fresh.run('state.books.reduce((sum, book) => sum + availableCopies(book), 0)'), catalog.reduce((sum, book) => sum + book.quantity, 0));
   fresh.run('authenticated = true; state.activeUserId = 2; state.books[0].quantity = 2;');

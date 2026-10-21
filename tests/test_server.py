@@ -69,10 +69,10 @@ class LoginTests(unittest.TestCase):
 
     def test_admin_setup_and_role_verification(self):
         self.assertTrue(self.request('/api/auth-status')[1]['adminSetupAvailable'])
-        admin = {**self.reader, 'name': '测试管理员', 'studentId': 'admin001', 'role': 'admin'}
+        admin = {**self.reader, 'name': '测试管理员', 'studentId': '100001', 'role': 'admin'}
         self.assertEqual(self.request('/api/register', admin)[0], 200)
         self.assertFalse(self.request('/api/auth-status')[1]['adminSetupAvailable'])
-        self.assertEqual(self.request('/api/register', {**admin, 'studentId': 'admin002'})[0], 403)
+        self.assertEqual(self.request('/api/register', {**admin, 'studentId': '100002'})[0], 403)
         self.request('/api/logout', {})
         self.assertEqual(self.request('/api/login', admin)[0], 200)
         self.assertTrue(self.request('/api/session')[1]['user']['isAdmin'])
@@ -85,6 +85,21 @@ class LoginTests(unittest.TestCase):
         self.assertEqual(self.request('/api/register', {**self.reader, 'studentId': '../invalid'})[0], 400)
         self.assertEqual(self.request('/api/register', self.reader, origin='http://example.com')[0], 403)
         self.assertEqual(self.request('/api/missing', {})[0], 404)
+
+    def test_name_numeric_id_and_password_rules(self):
+        for role in ('reader', 'admin'):
+            for endpoint in ('/api/login', '/api/register'):
+                for field, invalid in [('name', '张三123'), ('name', '123456'), ('name', '张🙂'), ('studentId', 'admin001'), ('studentId', '12 34'), ('studentId', '123-456'), ('studentId', '１２３'), ('password', '12345')]:
+                    with self.subTest(role=role, endpoint=endpoint, field=field, invalid=invalid):
+                        status, result = self.request(endpoint, {**self.reader, 'role': role, field: invalid})
+                        self.assertEqual(status, 400)
+                        self.assertIn('error', result)
+        valid = {**self.reader, 'name': '张三', 'studentId': '000123', 'password': secrets.token_hex(3)}
+        status, result = self.request('/api/register', valid)
+        self.assertEqual(status, 200, 'six-character passwords are valid')
+        self.assertEqual(result['user']['studentId'], '000123', 'leading zeros are preserved')
+        self.request('/api/logout', {})
+        self.assertEqual(self.request('/api/login', valid)[0], 200)
 
 
 if __name__ == '__main__':

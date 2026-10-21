@@ -92,9 +92,9 @@
           <button id="register-mode" type="button" class="button button-quiet" aria-pressed="false">首次注册</button>
         </div>
         <div class="form-field"><label for="login-role">登录身份</label><select id="login-role" class="form-control" name="role"><option value="reader">读者</option><option value="admin">管理员</option></select></div>
-        <div class="form-field"><label for="login-name">姓名</label><input id="login-name" class="form-control" name="name" autocomplete="name" maxlength="80" placeholder="请输入姓名" required></div>
-        <div class="form-field"><label for="login-student-id">学号</label><input id="login-student-id" class="form-control" name="studentId" autocomplete="username" pattern="[A-Za-z0-9_-]{1,32}" maxlength="32" placeholder="请输入学号（管理员也需要填写）" required></div>
-        <div class="form-field"><label for="login-password">密码</label><input id="login-password" class="form-control" name="password" type="password" autocomplete="current-password" minlength="6" maxlength="128" placeholder="请输入至少 6 位密码" required></div>
+        <div class="form-field"><label for="login-name">姓名</label><input id="login-name" class="form-control" name="name" autocomplete="name" pattern="[\p{L}]+([ ·'’\-][\p{L}]+)*" maxlength="80" placeholder="请输入姓名，不可填写数字" title="姓名只能包含文字，可用空格、间隔号、短横线或撇号连接" aria-describedby="name-rule" required><small class="field-hint" id="name-rule">请填写姓名文字，不接受数字或表情。</small></div>
+        <div class="form-field"><label for="login-student-id">学号</label><input id="login-student-id" class="form-control" name="studentId" autocomplete="username" inputmode="numeric" pattern="[0-9]{1,32}" maxlength="32" placeholder="请输入纯数字学号" title="学号必须是 1–32 位数字" aria-describedby="student-rule" required><small class="field-hint" id="student-rule">仅限 1–32 位数字，开头的 0 会保留。</small></div>
+        <div class="form-field"><label for="login-password">密码</label><input id="login-password" class="form-control" name="password" type="password" autocomplete="current-password" minlength="6" maxlength="128" placeholder="请输入至少 6 位密码" aria-describedby="password-rule" required><small class="field-hint" id="password-rule">至少 6 位，最多 128 位，可使用数字、字母或符号。</small></div>
         <p id="account-help" class="account-help">读者和管理员都需填写姓名、学号和密码。</p>
         <p id="login-error" class="login-error" role="alert" hidden></p>
         <button id="login-submit" class="button button-primary enter-button" type="submit" disabled>正在准备入馆…</button>

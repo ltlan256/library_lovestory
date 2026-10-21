@@ -902,11 +902,29 @@ document.querySelector("#login-back").addEventListener("click", () => {
   updateMusicStage();
   document.querySelector("#enter-library").focus();
 });
+function validateLoginValues(values) {
+  const name = String(values.name ?? "").trim();
+  const studentId = String(values.studentId ?? "").trim();
+  if (name.length > 80 || !/^\p{L}+(?:[ ·'’\-]\p{L}+)*$/u.test(name)) return { field: "login-name", error: "姓名请填写文字，可含空格、间隔号、短横线或撇号，不能包含数字。" };
+  if (!/^[0-9]{1,32}$/.test(studentId)) return { field: "login-student-id", error: "学号只能填写 1–32 位数字，不能包含字母、空格或其他符号。" };
+  const length = Array.from(String(values.password ?? "")).length;
+  if (length < 6 || length > 128) return { field: "login-password", error: "密码至少 6 位，最多 128 位。" };
+  return null;
+}
+
 document.querySelector("#login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const submit = document.querySelector("#login-submit");
   if (submit.disabled) return;
   const values = Object.fromEntries(new FormData(event.target));
+  const invalid = validateLoginValues(values);
+  if (invalid) {
+    const message = document.querySelector("#login-error");
+    message.textContent = invalid.error;
+    message.hidden = false;
+    document.querySelector(`#${invalid.field}`).focus();
+    return;
+  }
   submit.disabled = true;
   submit.textContent = "正在核对入馆证…";
   try {

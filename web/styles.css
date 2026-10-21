@@ -5,6 +5,7 @@
   --line: var(--tone-f1dce5, #f1dce5);
   --paper: #fff;
   --canvas: var(--tone-fff3f8, #fff3f8);
+  --route-wallpaper: url("assets/rukawa-wallpaper.jpg");
   --primary: var(--tone-ac3e6d, #ac3e6d);
   --primary-dark: var(--tone-8d2d57, #8d2d57);
   --primary-pale: var(--tone-fce3ee, #fce3ee);
@@ -16,8 +17,8 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--tone-cc6c93, #cc6c93); outline-offset: 4px; }
-.welcome-screen { position: relative; display: grid; place-items: center; min-height: 100vh; padding: 48px 22px 100px; overflow: hidden; background: radial-gradient(ellipse at 15% 15%, var(--tone-fce0ec, #fce0ec) 0, transparent 50%), radial-gradient(ellipse at 85% 85%, var(--tone-f8dce9, #f8dce9) 0, transparent 50%), var(--tone-fff5f9, #fff5f9); }
-.welcome-card { position: relative; z-index: 1; width: min(100%, 660px); text-align: center; }
+.welcome-screen { position: relative; display: grid; place-items: center; min-height: 100vh; padding: 48px 22px 100px; overflow: hidden; background-color: var(--canvas); background-image: linear-gradient(rgba(255,255,255,.36), rgba(255,255,255,.36)), var(--route-wallpaper); background-position: center; background-size: cover; }
+.welcome-card { position: relative; z-index: 1; width: min(100%, 660px); padding: clamp(20px, 4vw, 34px); border: 1px solid rgba(255,255,255,.85); border-radius: 24px; background: rgba(255,255,255,.85); backdrop-filter: blur(3px); text-align: center; }
 .login-card { max-width: 490px; }
 .login-card h1 { margin: 22px 0 12px; font-size: clamp(32px, 6vw, 44px); color: var(--primary); }
 .login-form { display: grid; gap: 18px; }
@@ -25,6 +26,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .login-tabs .button { flex: 1; }
 .login-form .form-control { height: 44px; font-size: 13px; }
 .login-form .form-field label { font-size: 12px; }
+.field-hint { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.7; }
 .login-form .account-help { color: var(--tone-866775, #866775); }
 .login-form .login-error { color: var(--tone-9d2655, #9d2655); background: var(--tone-fce3ee, #fce3ee); padding: 12px; border: 0; border-radius: 8px; }
 button:disabled { cursor: wait; opacity: .65; }
@@ -70,7 +72,7 @@ button:disabled { cursor: wait; opacity: .65; }
   .music-player { right: 12px; gap: 8px; padding: 8px 12px; }
   .music-player input { width: 48px; }
 }
-body { margin: 0; background: var(--canvas); color: var(--ink); font-size: 14px; }
+body { margin: 0; background-color: var(--canvas); background-image: linear-gradient(rgba(255,255,255,.52), rgba(255,255,255,.52)), var(--route-wallpaper); background-position: center; background-size: cover; background-attachment: fixed; color: var(--ink); font-size: 14px; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 .app-shell { min-height: 100vh; }
@@ -309,6 +311,7 @@ td { padding: 13px 20px; border-top: 1px solid var(--tone-f3eef0, #f3eef0); font
 
 /* Character routes share layout and functionality; only the palette changes. */
 :root[data-character="nailong"] {
+  --route-wallpaper: url("assets/nailong-wallpaper.jpeg");
   --tone-311d2433: #312c1d33;
   --tone-422332: #40321a;
   --tone-4a303912: #4a443012;

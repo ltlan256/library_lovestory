@@ -27,6 +27,18 @@ def password_hash(password, salt):
     return hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), 600_000).hex()
 
 
+def credential_error(name, student_id, password, role):
+    if not 1 <= len(name) <= 80 or not all(part and part.isalpha() for part in re.split(r"[ ·'’\-]", name)):
+        return '姓名请填写文字，可含空格、间隔号、短横线或撇号，不能包含数字。'
+    if not re.fullmatch(r'[0-9]{1,32}', student_id):
+        return '学号只能填写 1–32 位数字，不能包含字母、空格或其他符号。'
+    if not 6 <= len(password) <= 128:
+        return '密码至少 6 位，最多 128 位。'
+    if role not in ('reader', 'admin'):
+        return '请选择读者或管理员身份。'
+    return None
+
+
 class LibraryHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT / 'web'), **kwargs)
@@ -97,8 +109,9 @@ class LibraryHandler(SimpleHTTPRequestHandler):
             if not all(isinstance(value, str) for value in (name, student_id, password, role)):
                 return self.reply(400, {'error': '请填写有效的登录信息。'})
             name, student_id = name.strip(), student_id.strip()
-            if not name or len(name) > 80 or not re.fullmatch(r'[A-Za-z0-9_-]{1,32}', student_id) or not 6 <= len(password) <= 128 or role not in ('reader', 'admin'):
-                return self.reply(400, {'error': '请填写姓名、有效学号和 6–128 位密码。学号支持字母、数字、下划线和短横线。'})
+            error = credential_error(name, student_id, password, role)
+            if error:
+                return self.reply(400, {'error': error})
             if route == '/api/register':
                 db.execute('BEGIN IMMEDIATE')
                 if role == 'admin' and db.execute('SELECT 1 FROM accounts WHERE is_admin = 1').fetchone():
