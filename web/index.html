@@ -38,10 +38,10 @@
         <h2>♡ 攻略小纸条</h2>
         <ol>
           <li><strong>挑选心仪图书</strong><span>进入「馆藏图书」，借一本喜欢的书。</span></li>
-          <li><strong>归还，收集心动</strong><span>在「我的借阅」成功归还，每本好感度 +1。</span></li>
-          <li><strong>解锁特别结局</strong><span>累计归还 25 本，完成这场心动攻略！</span></li>
+          <li><strong>30 天内归还，收集心动</strong><span>每位读者最多同时借 10 本；成功归还每本好感度 +1，逾期每本每天扣 1 点，最低为 0。</span></li>
+          <li><strong>解锁特别结局</strong><span>好感度达到 25 点，完成这场心动攻略！</span></li>
         </ol>
-        <p>♪ 0–4 本：初遇 · 5–24 本：靠近 · 25 本：心动结局</p>
+        <p>♪ 0–4 点：初遇 · 5–24 点：靠近 · 25 点：心动结局</p>
       </div>
       <button id="enter-library" class="button button-primary enter-button" type="button">推开门，开始攻略 <span>→</span></button>
       <button id="welcome-change-character" class="text-button change-character" type="button">← 重新选择攻略对象</button>
@@ -126,7 +126,7 @@
         <button class="icon-button" type="button" data-action="cancel-borrow" aria-label="关闭借阅确认">×</button>
       </div>
       <div id="borrow-details"></div>
-      <label class="borrow-agreement"><input id="borrow-agreement" type="checkbox" required> 我已核对图书与借阅人信息，确认借阅 1 本。</label>
+      <label class="borrow-agreement"><input id="borrow-agreement" type="checkbox" required> 我已核对借阅信息，了解 30 天借期及逾期每日扣分规则，确认借阅 1 本。</label>
       <p id="borrow-error" class="borrow-error" role="alert" hidden></p>
       <div class="modal-actions">
         <button class="button button-quiet" type="button" data-action="cancel-borrow">取消，继续挑选</button>

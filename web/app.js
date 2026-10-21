@@ -1,5 +1,7 @@
 const STORAGE_KEY = "shiye-library-web-v1";
 const CATALOG_VERSION = 2;
+const LOAN_DAYS = 30;
+const MAX_ACTIVE_LOANS = 10;
 const CHARACTERS = {
   rukawa: { name: "流川枫", title: "流川枫心动狙击战", image: "assets/rukawa.png", alt: "流川枫的黑白漫画肖像", width: 981, height: 983, greeting: "借一本书，让故事和他的目光，都向你靠近一点。" },
   nailong: { name: "奶龙", title: "奶龙心动大冒险", image: "assets/nailong.png", alt: "黄色的奶龙，配文惊鸿一瞥", width: 224, height: 195, greeting: "借一本书，和奶龙一起收集暖乎乎的快乐！" }
@@ -140,8 +142,22 @@ function currentUser() {
   return state.users.find((user) => user.id === state.activeUserId) ?? state.users[0] ?? DEMO_USERS[1];
 }
 
+function characterReturns(user = currentUser(), character = state.character) {
+  return user.characterProgress?.[character] ?? (character === "rukawa" ? user.returnedBooks ?? 0 : 0);
+}
+
+function overduePenalty(user = currentUser(), character = state.character, today = formatDate()) {
+  const matches = (loan) => loan.userId === user.id && (CHARACTERS[loan.character] ? loan.character : "rukawa") === character;
+  return state.loans.filter(matches).reduce((sum, loan) => sum + overdueDays(loan, today), 0)
+    + state.loanHistory.filter(matches).reduce((sum, loan) => sum + (loan.overdueDays ?? 0), 0);
+}
+
 function characterProgress(user = currentUser()) {
-  return user.characterProgress?.[state.character] ?? (state.character === "rukawa" ? user.returnedBooks ?? 0 : 0);
+  return Math.max(0, characterReturns(user) - overduePenalty(user));
+}
+
+function activeLoanCount(user = currentUser()) {
+  return state.loans.filter((loan) => loan.userId === user.id).length;
 }
 
 function selectCharacter(id) {
@@ -206,6 +222,24 @@ function formatDate(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function calendarDay(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return NaN;
+  const [year, month, day] = value.split("-").map(Number);
+  const timestamp = Date.UTC(year, month - 1, day);
+  return new Date(timestamp).toISOString().slice(0, 10) === value ? timestamp / 86400000 : NaN;
+}
+
+function dueDate(loan) {
+  if (Number.isFinite(calendarDay(loan.dueDate))) return loan.dueDate;
+  const borrowed = calendarDay(loan.date);
+  return Number.isFinite(borrowed) ? new Date((borrowed + LOAN_DAYS) * 86400000).toISOString().slice(0, 10) : "待核对";
+}
+
+function overdueDays(loan, today = formatDate()) {
+  const days = calendarDay(today) - calendarDay(dueDate(loan));
+  return Number.isFinite(days) ? Math.max(0, days) : 0;
+}
+
 function categoryClass(index) {
   return `c${(index % 4) + 1}`;
 }
@@ -251,18 +285,19 @@ function tableMarkup(books, options = {}) {
 function progressMarkup(user) {
   const returned = characterProgress(user);
   const character = CHARACTERS[state.character];
-  const percent = Math.min(100, Math.round(returned / 25 * 100));
+  const percent = Math.max(0, Math.min(100, Math.round(returned / 25 * 100)));
   return `<section class="panel progress-panel">
     <div class="progress-top"><h2>${character.title}</h2><span class="spark">♡</span></div>
-    <p class="progress-lead">借一本书，靠近他一点。每成功归还 1 本，好感度 +1；累计 25 本，解锁心动结局。</p>
-    <div class="heart-line"><span>${character.name}好感度</span><strong>${returned} / 25 本</strong></div>
+    <p class="progress-lead">借期 30 天，最多同时借 10 本。每成功归还 1 本，好感度 +1；每本逾期每天扣 1 点，好感度达到 25 解锁心动结局。</p>
+    <div class="heart-line"><span>${character.name}好感度</span><strong>${returned} / 25 点</strong></div>
+    ${overduePenalty(user) > 0 ? `<p class="overdue-warning">本角色累计逾期扣分：${overduePenalty(user)} 点，含在借与已归还图书；好感度最低为 0。</p>` : ""}
     <div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div>
-    <div class="milestone-row"><span>开始阅读</span><span>25 次 · 特别结局</span></div>
+    <div class="milestone-row"><span>开始阅读</span><span>25 点 · 特别结局</span></div>
     <figure class="character-portrait">
       <img src="${character.image}" alt="${character.alt}" width="${character.width}" height="${character.height}">
       <figcaption><span>攻略对象 · ${character.name}</span><b>♡ ${returned >= 25 ? "心动已被你击中" : returned > 4 ? "目光开始为你停留" : "故事从初遇开始"}</b></figcaption>
     </figure>
-    <div class="progress-quote">${returned >= 25 ? "恭喜达成目标！新的故事，正等着你们一起开启。 ✨" : `已完成 <strong>${returned}</strong> 次归还，再读 ${Math.max(0, 25 - returned)} 本，就能抵达下一段故事。`}</div>
+    <div class="progress-quote">${returned >= 25 ? "恭喜达成目标！新的故事，正等着你们一起开启。 ✨" : `本角色已完成 <strong>${characterReturns(user)}</strong> 次归还，还需积累 ${Math.max(0, 25 - characterReturns(user) + overduePenalty(user))} 点好感度，就能抵达下一段故事。`}</div>
     <div class="quick-actions"><button class="button button-primary" data-page="catalog">去挑一本书 <span>→</span></button><button class="button button-quiet" data-page="loans">我的借阅</button></div>
   </section>`;
 }
@@ -277,7 +312,7 @@ function dashboardPage() {
   const totalCopies = state.books.reduce((total, book) => total + book.quantity, 0);
   const remainingCopies = state.books.reduce((total, book) => total + availableCopies(book), 0);
   const onLoan = isAdmin() ? state.loans.length : state.loans.filter((loan) => loan.userId === user.id).length;
-  const returned = characterProgress(user);
+  const returned = characterReturns(user);
   const latest = [...state.books].sort((a, b) => b.id - a.id).slice(0, 5);
   const stats = `<div class="stats-grid">
     ${statCard("馆藏种类", state.books.length, `共 <strong>${totalCopies}</strong> 本 · 每种 1–3 本`, "▤", "catalog", "全部状态")}
@@ -330,8 +365,8 @@ function borrowingTabs(history = false) {
 
 function loanHistoryPage() {
   const history = isAdmin() ? state.loanHistory : state.loanHistory.filter((loan) => loan.userId === currentUser().id);
-  const rows = [...history].reverse().map((loan) => `<tr><td><div class="book-cell">${coverMarkup({ title: loan.title || "图书" }, loan.bookId)}<div><div class="book-title">${escapeHtml(loan.title || "图书已删除")}</div><div class="book-author">${escapeHtml(loan.author || "")}</div></div></div></td>${isAdmin() ? `<td>${escapeHtml(loan.borrower)}</td>` : ""}<td>${escapeHtml(loan.date)}</td><td>${escapeHtml(loan.returnedDate)}</td><td>${CHARACTERS[loan.character]?.name || "流川枫"}</td><td><span class="status-tag available">已归还</span></td></tr>`).join("");
-  const table = `<div class="table-wrap"><table><thead><tr><th>书名 / 作者</th>${isAdmin() ? "<th>借阅人</th>" : ""}<th>借阅日期</th><th>归还日期</th><th>攻略角色</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const rows = [...history].reverse().map((loan) => `<tr><td><div class="book-cell">${coverMarkup({ title: loan.title || "图书" }, loan.bookId)}<div><div class="book-title">${escapeHtml(loan.title || "图书已删除")}</div><div class="book-author">${escapeHtml(loan.author || "")}</div></div></div></td>${isAdmin() ? `<td>${escapeHtml(loan.borrower)}</td>` : ""}<td>${escapeHtml(loan.date)}</td><td>${escapeHtml(loan.returnedDate)}</td><td>${loan.dueDate ? escapeHtml(loan.dueDate) : "—"}</td><td>${loan.overdueDays ?? 0} 天 / ${loan.overdueDays ?? 0} 点</td><td>${CHARACTERS[loan.character]?.name || "流川枫"}</td><td><span class="status-tag available">已归还</span></td></tr>`).join("");
+  const table = `<div class="table-wrap"><table><thead><tr><th>书名 / 作者</th>${isAdmin() ? "<th>借阅人</th>" : ""}<th>借阅日期</th><th>归还日期</th><th>应还日期</th><th>逾期 / 扣分</th><th>攻略角色</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">RETURNED BOOKS</div><h1>${isAdmin() ? "全部借阅历史" : "我的借阅历史"}</h1><p class="subheading">每一本读过的书，都为你留下一段故事。共 ${history.length} 条已归还记录。</p></div></div>${borrowingTabs(true)}<section class="panel">${history.length ? table : '<div class="empty-state"><div class="empty-icon">📖</div><strong>还没有历史记录</strong><span>从现在起，成功归还的图书会自动保存在这里；之前的累计归还进度仍然保留。</span></div>'}</section>`;
 }
 
@@ -341,10 +376,10 @@ function loansPage() {
   const cards = loans.length ? [...loans].reverse().map((loan) => {
     const book = state.books.find((item) => item.id === loan.bookId);
     const canReturn = isAdmin() || loan.userId === currentUser().id;
-    return `<article class="loan-card"><div class="loan-meta">${coverMarkup(book ?? { title: "书" }, loan.bookId)}<div class="loan-details"><strong>${escapeHtml(book?.title ?? "图书已删除")}</strong><small>${escapeHtml(book?.author ?? "")}${isAdmin() ? ` · 借阅人：${escapeHtml(loan.borrower)}` : ""}</small></div></div><div class="row-actions"><span class="loan-date">借于 ${escapeHtml(loan.date)}</span>${canReturn && !isAdmin() ? `<button class="button button-quiet button-small" data-action="return" data-id="${loan.bookId}">归还</button>` : ""}</div></article>`;
+    return `<article class="loan-card"><div class="loan-meta">${coverMarkup(book ?? { title: "书" }, loan.bookId)}<div class="loan-details"><strong>${escapeHtml(book?.title ?? "图书已删除")}</strong><small>${escapeHtml(book?.author ?? "")}${isAdmin() ? ` · 借阅人：${escapeHtml(loan.borrower)}` : ""}</small></div></div><div class="row-actions"><div class="loan-timing"><span class="loan-date">借于 ${escapeHtml(loan.date)} · 应还 ${escapeHtml(dueDate(loan))}</span><span class="status-tag ${overdueDays(loan) ? "borrowed" : "available"}">${overdueDays(loan) ? `已逾期 ${overdueDays(loan)} 天 · 扣 ${overdueDays(loan)} 点好感度` : "30 天内归还"}</span></div>${canReturn && !isAdmin() ? `<button class="button button-quiet button-small" data-action="return" data-id="${loan.bookId}">归还</button>` : ""}</div></article>`;
   }).join("") : `<div class="empty-state"><div class="empty-icon">↗</div><strong>这里还空着</strong><span>${isAdmin() ? "目前没有正在借阅的图书。" : "去书架挑一本喜欢的书，开启新的阅读吧。"}</span>${!isAdmin() ? '<p><button class="button button-primary" data-page="catalog">浏览图书 →</button></p>' : ""}</div>`;
   const header = isAdmin() ? `<div class="panel-head"><div><h2>全部在借记录</h2><p>${loans.length} 条正在进行的借阅</p></div></div>` : "";
-  content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">BORROWING HISTORY</div><h1>${heading}</h1><p class="subheading">${isAdmin() ? "查看读者借阅状态，及时完成图书归还管理。" : "正在读的书和每一次借阅，都收录在这里。"}</p></div></div>${borrowingTabs()}<section class="panel">${header}<div class="loan-card-list">${cards}</div></section>`;
+  content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">BORROWING HISTORY</div><h1>${heading}</h1><p class="subheading">${isAdmin() ? "查看读者借阅状态，及时完成图书归还管理。" : "正在读的书和每一次借阅，都收录在这里。"}</p></div></div>${borrowingTabs()}<p class="loan-rules">借期 30 天（到期当天可归还）；每本逾期每天扣 1 点对应角色好感度，最低为 0。每位读者最多同时借 10 本，两条角色路线合并计数。${!isAdmin() ? `你当前在借 ${activeLoanCount()} / 10 本。` : ""}</p><section class="panel">${header}<div class="loan-card-list">${cards}</div></section>`;
 }
 
 function readersPage() {
@@ -372,7 +407,7 @@ function render() {
   else if (state.page === "loans") loansPage();
   else if (state.page === "loan-history") loanHistoryPage();
   else if (state.page === "readers") readersPage();
-  else if (state.page === "progress") content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">YOUR STORY</div><h1>你的心动攻略进度</h1><p class="subheading">每成功归还 1 本，好感度 +1。累计归还 25 本，解锁特别结局。</p></div><button class="button button-quiet" data-page="dashboard">返回总览</button></div><div class="progress-detail">${progressMarkup(user)}</div>`;
+  else if (state.page === "progress") content.innerHTML = `<div class="welcome-row"><div class="welcome-copy"><div class="eyebrow">YOUR STORY</div><h1>你的心动攻略进度</h1><p class="subheading">成功归还 +1 点，每本逾期每天 -1 点；好感度达到 25 点解锁特别结局。</p></div><button class="button button-quiet" data-page="dashboard">返回总览</button></div><div class="progress-detail">${progressMarkup(user)}</div>`;
   else dashboardPage();
 }
 
@@ -517,11 +552,13 @@ form.addEventListener("submit", (event) => {
 
 function borrowBook(bookId) {
   if (!authenticated || isAdmin()) return;
+  if (activeLoanCount() >= MAX_ACTIVE_LOANS) return showToast("每位读者最多同时借阅 10 本，请先归还后再借。");
   const book = state.books.find((item) => item.id === bookId);
   if (!book || availableCopies(book) < 1) return showToast("这本书目前已借完。");
   const user = currentUser();
   if (state.loans.some((loan) => loan.bookId === bookId && loan.userId === user.id)) return showToast("你已借过这本书，请先归还后再借阅。");
-  state.loans.push({ bookId, userId: user.id, borrower: user.name, date: formatDate(), character: state.character, title: book.title, author: book.author });
+  const date = formatDate();
+  state.loans.push({ bookId, userId: user.id, borrower: user.name, date, dueDate: dueDate({ date }), character: state.character, title: book.title, author: book.author });
   book.available = availableCopies(book) > 0;
   persist(); render(); showToast(`《${book.title}》已加入你的借阅。`);
   return true;
@@ -529,6 +566,7 @@ function borrowBook(bookId) {
 
 function openBorrowDialog(bookId) {
   if (!authenticated || isAdmin()) return;
+  if (activeLoanCount() >= MAX_ACTIVE_LOANS) return showToast("每位读者最多同时借阅 10 本，请先归还后再借。");
   const book = state.books.find((item) => item.id === bookId);
   if (!book || availableCopies(book) < 1) return showToast("这本书目前已借完，请选择其他图书。");
   if (state.loans.some((loan) => loan.bookId === bookId && loan.userId === currentUser().id)) return showToast("你已借过这本书，可在「我的借阅」中查看。");
@@ -538,7 +576,7 @@ function openBorrowDialog(bookId) {
   document.querySelector("#borrow-agreement").checked = false;
   document.querySelector("#confirm-borrow").disabled = true;
   document.querySelector("#borrow-error").hidden = true;
-  document.querySelector("#borrow-details").innerHTML = `<div class="borrow-book">${coverMarkup(book, book.id)}<div><h3>《${escapeHtml(book.title)}》</h3><p>${escapeHtml(book.author)} · ${escapeHtml(book.category)}</p></div></div><dl class="borrow-summary"><div><dt>借阅人</dt><dd>${escapeHtml(currentUser().name)}</dd></div><div><dt>借阅数量</dt><dd>1 本</dd></div><div><dt>当前可借</dt><dd>${availableCopies(book)} / ${book.quantity} 本</dd></div><div><dt>借阅日期</dt><dd>${formatDate()}</dd></div></dl><p class="borrow-note">确认后将占用 1 本库存。借阅记录可在「我的借阅」中查看，成功归还后好感度 +1。</p>`;
+  document.querySelector("#borrow-details").innerHTML = `<div class="borrow-book">${coverMarkup(book, book.id)}<div><h3>《${escapeHtml(book.title)}》</h3><p>${escapeHtml(book.author)} · ${escapeHtml(book.category)}</p></div></div><dl class="borrow-summary"><div><dt>借阅人</dt><dd>${escapeHtml(currentUser().name)}</dd></div><div><dt>借阅数量</dt><dd>1 本</dd></div><div><dt>当前可借</dt><dd>${availableCopies(book)} / ${book.quantity} 本</dd></div><div><dt>借阅日期</dt><dd>${formatDate()}</dd></div><div><dt>应还日期</dt><dd>${dueDate({ date: formatDate() })}（30 天）</dd></div><div><dt>本次借阅后</dt><dd>${activeLoanCount() + 1} / 10 本</dd></div></dl><p class="borrow-note">请在应还日期当天或之前归还。每本逾期每天扣 1 点 ${CHARACTERS[state.character].name} 好感度，成功归还 +1。最多同时借 10 本。</p>`;
   document.querySelector("#borrow-dialog").showModal();
 }
 
@@ -567,7 +605,7 @@ document.querySelector("#borrow-form").addEventListener("submit", (event) => {
   const book = state.books.find((item) => item.id === bookId);
   if (!borrowBook(bookId)) {
     const error = document.querySelector("#borrow-error");
-    error.textContent = "借阅未完成，图书库存或借阅状态已变化，请关闭后重新选择。";
+    error.textContent = "借阅未完成：库存、借阅状态可能已变化，或已达 10 本上限。请关闭后检查。";
     error.hidden = false;
     return;
   }
@@ -586,13 +624,14 @@ function returnBook(bookId) {
   if (book) book.available = availableCopies(book) > 0;
   const user = state.users.find((item) => item.id === loan.userId);
   const target = CHARACTERS[loan.character] ? loan.character : "rukawa";
-  state.loanHistory.push({ ...loan, title: loan.title ?? book?.title ?? "图书已删除", author: loan.author ?? book?.author ?? "", character: target, returnedDate: formatDate(), returnedAt: new Date().toISOString() });
+  const penalty = overdueDays(loan);
+  state.loanHistory.push({ ...loan, title: loan.title ?? book?.title ?? "图书已删除", author: loan.author ?? book?.author ?? "", character: target, dueDate: dueDate(loan), overdueDays: penalty, returnedDate: formatDate(), returnedAt: new Date().toISOString() });
   if (user) {
     user.characterProgress ??= { rukawa: user.returnedBooks ?? 0, nailong: 0 };
     user.characterProgress[target] = (user.characterProgress[target] ?? 0) + 1;
     user.returnedBooks = (user.returnedBooks ?? 0) + 1;
   }
-  persist(); render(); showToast(`已归还《${book?.title ?? "图书"}》，${CHARACTERS[target].name}好感度 +1。`);
+  persist(); render(); showToast(`已归还《${book?.title ?? "图书"}》，${CHARACTERS[target].name}好感度 +1。${penalty ? `本次逾期 ${penalty} 天，累计扣 ${penalty} 点，不重复扣分。` : ""}`);
 }
 
 const bgm = document.querySelector("#bgm");
@@ -766,6 +805,18 @@ document.querySelector("#login-form").addEventListener("submit", async (event) =
 });
 
 document.querySelector("#welcome-change-character").addEventListener("click", showCharacterSelection);
+// Recalculate the displayed score when a tab is reopened or crosses midnight.
+let lastPolicyDate = formatDate();
+function refreshLoanPolicy() {
+  lastPolicyDate = formatDate();
+  if (authenticated) render();
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshLoanPolicy();
+});
+window.setInterval?.(() => {
+  if (formatDate() !== lastPolicyDate) refreshLoanPolicy();
+}, 60000);
 document.querySelector("#change-character").addEventListener("click", showCharacterSelection);
 const routeCharacter = new URLSearchParams(window.location?.search || "").get("character");
 if (CHARACTERS[routeCharacter]) selectCharacter(routeCharacter);
