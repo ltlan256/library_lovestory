@@ -26,6 +26,9 @@ const state = {
   editingBookId: null,
   toastTimer: null
 };
+let authenticated = false;
+let registering = false;
+let adminSetupAvailable = false;
 
 const content = document.querySelector("#page-content");
 const dialog = document.querySelector("#edit-dialog");
@@ -245,11 +248,12 @@ function readersPage() {
 }
 
 function render() {
+  if (!authenticated) return;
   updateMusicStage();
   const user = currentUser();
   document.querySelector("#user-name").textContent = user.name;
   document.querySelector("#user-avatar").textContent = Array.from(user.name)[0] ?? "读";
-  document.querySelector("#user-role").textContent = isAdmin() ? "管理员模式 · 点击切换" : "读者模式 · 点击切换";
+  document.querySelector("#user-role").textContent = isAdmin() ? "管理员 · 点击退出" : "读者 · 点击退出";
   document.querySelectorAll(".admin-only").forEach((item) => item.classList.toggle("hidden", !isAdmin()));
   const pageLabels = { dashboard: "总览", catalog: "馆藏图书", loans: isAdmin() ? "借阅管理" : "我的借阅", readers: "读者档案" };
   if (state.page === "readers" && !isAdmin()) state.page = "dashboard";
@@ -262,6 +266,7 @@ function render() {
 }
 
 function navigate(page) {
+  if (!authenticated) return showLogin();
   state.page = page;
   render();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -297,6 +302,8 @@ document.addEventListener("click", (event) => {
     return;
   }
   const action = button.dataset.action;
+  if (action && !authenticated) return;
+  if (["add-book", "edit-book", "delete-book", "add-reader"].includes(action) && !isAdmin()) return;
   const id = Number(button.dataset.id);
   if (button.matches("[data-close-dialog]")) dialog.close();
   else if (action === "add-book") openBookDialog();
@@ -314,15 +321,14 @@ document.addEventListener("click", (event) => {
   else if (action === "return") returnBook(id);
 });
 
-document.querySelector("#role-switch").addEventListener("click", () => {
-  const admin = state.users.find((user) => user.isAdmin);
-  const reader = state.users.find((user) => !user.isAdmin);
-  if (!admin || !reader) return showToast("需要同时有管理员和读者账号才能切换演示身份。");
-  state.activeUserId = isAdmin() ? reader.id : admin.id;
-  persist();
-  if (!isAdmin() && state.page === "readers") state.page = "dashboard";
-  render();
-  showToast(`已切换为${isAdmin() ? "管理员" : "读者"}演示身份。`);
+document.querySelector("#role-switch").addEventListener("click", async () => {
+  try {
+    await authRequest("/api/logout", {});
+    authenticated = false;
+    content.innerHTML = "";
+    showLogin();
+    showToast("已退出，请重新登录。");
+  } catch (error) { showToast(error.message); }
 });
 
 document.addEventListener("input", (event) => {
@@ -346,6 +352,7 @@ function refreshCatalogResults() {
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!authenticated || !isAdmin()) return;
   const values = new FormData(form);
   if (values.has("name")) {
     const name = String(values.get("name")).trim();
@@ -376,6 +383,7 @@ form.addEventListener("submit", (event) => {
 });
 
 function borrowBook(bookId) {
+  if (!authenticated || isAdmin()) return;
   const book = state.books.find((item) => item.id === bookId);
   if (!book || !book.available) return showToast("这本书目前不可借阅。");
   const user = currentUser();
@@ -385,6 +393,7 @@ function borrowBook(bookId) {
 }
 
 function returnBook(bookId) {
+  if (!authenticated || isAdmin()) return;
   const loanIndex = state.loans.findIndex((loan) => loan.bookId === bookId && loan.userId === currentUser().id);
   if (loanIndex < 0) return showToast("没有找到这本书的有效借阅记录。");
   const [loan] = state.loans.splice(loanIndex, 1);
@@ -422,7 +431,7 @@ async function playMusic() {
 }
 
 function updateMusicStage() {
-  const atEntrance = !document.querySelector("#welcome-screen").hidden;
+  const atEntrance = !document.querySelector("#welcome-screen").hidden || !document.querySelector("#login-screen").hidden;
   const returned = currentUser().returnedBooks ?? 0;
   const next = atEntrance || isAdmin() || returned <= 4 ? "begin" : returned >= 25 ? "ending" : "middle";
   document.querySelector("#music-stage").textContent = { begin: "初遇 · 开场曲", middle: "靠近 · 攻略曲", ending: "心动 · 结局曲" }[next];
@@ -448,20 +457,131 @@ document.querySelector("#music-volume").addEventListener("input", (event) => {
   bgm.volume = Number(event.target.value);
 });
 document.querySelector("#enter-library").addEventListener("click", () => {
-  document.querySelector("#welcome-screen").hidden = true;
-  document.querySelector("#library-app").hidden = false;
-  updateMusicStage();
+  if (authenticated) enterLibrary();
+  else showLogin();
   musicEnabled = true;
   void playMusic();
-  navigate("dashboard");
-  document.querySelector(".brand").focus();
 });
 document.querySelector("#show-guide").addEventListener("click", () => {
   document.querySelector("#welcome-screen").hidden = false;
+  document.querySelector("#login-screen").hidden = true;
   document.querySelector("#library-app").hidden = true;
   updateMusicStage();
   window.scrollTo({ top: 0 });
   document.querySelector("#enter-library").focus();
 });
 
-initialize();
+async function authRequest(url, values) {
+  let response;
+  try {
+    response = await fetch(url, {
+      method: values ? "POST" : "GET",
+      headers: values ? { "Content-Type": "application/json" } : {},
+      body: values ? JSON.stringify(values) : undefined
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "登录服务暂时不可用。");
+    return data;
+  } catch (error) {
+    if (!response || !response.headers.get("content-type")?.includes("application/json")) {
+      throw new Error("请通过 python server.py 启动网页，并打开 http://localhost:8001。");
+    }
+    throw error;
+  }
+}
+
+function updateLoginMode() {
+  const role = document.querySelector("#login-role").value;
+  document.querySelector("#login-submit").textContent = registering ? "注册并进入图书馆 →" : "登录，进入图书馆 →";
+  document.querySelector("#login-password").autocomplete = registering ? "new-password" : "current-password";
+  for (const [id, selected] of [["#login-mode", !registering], ["#register-mode", registering]]) {
+    const button = document.querySelector(id);
+    button.classList.toggle("button-primary", selected);
+    button.classList.toggle("button-quiet", !selected);
+    button.setAttribute("aria-pressed", String(selected));
+  }
+  document.querySelector("#account-help").textContent = registering
+    ? role === "admin"
+      ? adminSetupAvailable ? "首次使用：请设置管理员的姓名、学号和密码，并妥善保管。" : "管理员已设置，请切换到「账号登录」。"
+      : "首次来访？填写姓名、学号和至少 6 位密码，创建你的读者账号。"
+    : "读者和管理员都需填写注册时的姓名、学号和密码。";
+  document.querySelector("#login-error").hidden = true;
+}
+
+function showLogin() {
+  document.querySelector("#welcome-screen").hidden = true;
+  document.querySelector("#login-screen").hidden = false;
+  document.querySelector("#library-app").hidden = true;
+  document.querySelector("#login-password").value = "";
+  updateLoginMode();
+  updateMusicStage();
+  window.scrollTo({ top: 0 });
+  document.querySelector("#login-name").focus();
+}
+
+function enterLibrary() {
+  if (!authenticated) return;
+  document.querySelector("#welcome-screen").hidden = true;
+  document.querySelector("#login-screen").hidden = true;
+  document.querySelector("#library-app").hidden = false;
+  navigate("dashboard");
+  document.querySelector(".brand").focus();
+}
+
+document.querySelector("#login-mode").addEventListener("click", () => { registering = false; updateLoginMode(); });
+document.querySelector("#register-mode").addEventListener("click", () => { registering = true; updateLoginMode(); });
+document.querySelector("#login-role").addEventListener("change", updateLoginMode);
+document.querySelector("#login-back").addEventListener("click", () => {
+  document.querySelector("#login-screen").hidden = true;
+  document.querySelector("#welcome-screen").hidden = false;
+  document.querySelector("#login-password").value = "";
+  updateMusicStage();
+  document.querySelector("#enter-library").focus();
+});
+document.querySelector("#login-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submit = document.querySelector("#login-submit");
+  if (submit.disabled) return;
+  const values = Object.fromEntries(new FormData(event.target));
+  submit.disabled = true;
+  submit.textContent = "正在核对入馆证…";
+  try {
+    const { user } = await authRequest(registering ? "/api/register" : "/api/login", values);
+    let reader = state.users.find((item) => item.studentId === user.studentId);
+    if (!reader) {
+      reader = { id: Math.max(0, ...state.users.map((item) => item.id)) + 1, returnedBooks: 0 };
+      state.users.push(reader);
+    }
+    Object.assign(reader, user, { username: user.studentId });
+    state.activeUserId = reader.id;
+    persist();
+    authenticated = true;
+    if (user.isAdmin) adminSetupAvailable = false;
+    document.querySelector("#login-password").value = "";
+    enterLibrary();
+    musicEnabled = true;
+    void playMusic();
+    showToast(`欢迎入馆，${user.name} ♡`);
+  } catch (error) {
+    const message = document.querySelector("#login-error");
+    message.textContent = error.message;
+    message.hidden = false;
+  } finally {
+    submit.disabled = false;
+    submit.textContent = registering ? "注册并进入图书馆 →" : "登录，进入图书馆 →";
+  }
+});
+
+initialize().then(async () => {
+  try {
+    const status = await authRequest("/api/auth-status");
+    adminSetupAvailable = status.adminSetupAvailable;
+    document.querySelector("#login-submit").disabled = false;
+    updateLoginMode();
+  } catch (error) {
+    const message = document.querySelector("#login-error");
+    message.textContent = error.message;
+    message.hidden = false;
+    document.querySelector("#login-submit").textContent = "请先启动登录服务";
+  }
+});

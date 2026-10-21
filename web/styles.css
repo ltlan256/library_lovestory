@@ -18,6 +18,16 @@
 button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #cc6c93; outline-offset: 4px; }
 .welcome-screen { position: relative; display: grid; place-items: center; min-height: 100vh; padding: 48px 22px 100px; overflow: hidden; background: radial-gradient(ellipse at 15% 15%, #fce0ec 0, transparent 50%), radial-gradient(ellipse at 85% 85%, #f8dce9 0, transparent 50%), #fff5f9; }
 .welcome-card { position: relative; z-index: 1; width: min(100%, 660px); text-align: center; }
+.login-card { max-width: 490px; }
+.login-card h1 { margin: 22px 0 12px; font-size: clamp(32px, 6vw, 44px); color: var(--primary); }
+.login-form { display: grid; gap: 18px; }
+.login-tabs { display: flex; gap: 10px; }
+.login-tabs .button { flex: 1; }
+.login-form .form-control { height: 44px; font-size: 13px; }
+.login-form .form-field label { font-size: 12px; }
+.login-form .account-help { color: #866775; }
+.login-form .login-error { color: #9d2655; background: #fce3ee; padding: 12px; border: 0; border-radius: 8px; }
+button:disabled { cursor: wait; opacity: .65; }
 .welcome-sticker { margin-bottom: 18px; font-size: 35px; letter-spacing: 14px; }
 .welcome-badge { display: inline-block; padding: 7px 15px; border: 1px solid #e9c9d5; border-radius: 30px; color: #a36078; background: #fef9fb; font-size: 11px; letter-spacing: 2px; }
 .welcome-greeting { margin: 23px 0 16px; color: #966677; font-size: 13px; line-height: 1.8; }

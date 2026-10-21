@@ -12,5 +12,8 @@ build/
 !.vscode/c_cpp_properties.json
 
 # Common temporary files
+# Local accounts and password hashes
+local-data/
+__pycache__/
 *.tmp
 *.log

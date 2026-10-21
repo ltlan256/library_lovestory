@@ -30,6 +30,28 @@
     </div>
     <div class="welcome-decoration" aria-hidden="true">✦<br>♡<br>✧</div>
   </section>
+  <section id="login-screen" class="welcome-screen" aria-labelledby="login-title" hidden>
+    <div class="welcome-card login-card">
+      <div class="welcome-sticker" aria-hidden="true">💌 ♡ 📖</div>
+      <span class="welcome-badge">STEP 02 · 领取你的入馆证</span>
+      <h1 id="login-title">心动入馆处</h1>
+      <p class="welcome-description">填好你的小档案，再一起走进故事里吧。</p>
+      <form id="login-form" class="welcome-guide login-form">
+        <div class="login-tabs" aria-label="账号操作">
+          <button id="login-mode" type="button" class="button button-primary" aria-pressed="true">账号登录</button>
+          <button id="register-mode" type="button" class="button button-quiet" aria-pressed="false">首次注册</button>
+        </div>
+        <div class="form-field"><label for="login-role">登录身份</label><select id="login-role" class="form-control" name="role"><option value="reader">读者</option><option value="admin">管理员</option></select></div>
+        <div class="form-field"><label for="login-name">姓名</label><input id="login-name" class="form-control" name="name" autocomplete="name" maxlength="80" placeholder="请输入姓名" required></div>
+        <div class="form-field"><label for="login-student-id">学号</label><input id="login-student-id" class="form-control" name="studentId" autocomplete="username" pattern="[A-Za-z0-9_-]{1,32}" maxlength="32" placeholder="请输入学号（管理员也需要填写）" required></div>
+        <div class="form-field"><label for="login-password">密码</label><input id="login-password" class="form-control" name="password" type="password" autocomplete="current-password" minlength="6" maxlength="128" placeholder="请输入至少 6 位密码" required></div>
+        <p id="account-help" class="account-help">读者和管理员都需填写姓名、学号和密码。</p>
+        <p id="login-error" class="login-error" role="alert" hidden></p>
+        <button id="login-submit" class="button button-primary enter-button" type="submit" disabled>正在准备入馆…</button>
+      </form>
+      <button id="login-back" class="text-button" type="button">← 返回欢迎页</button>
+    </div>
+  </section>
   <div class="app-shell" id="library-app" hidden>
     <aside class="sidebar">
       <a class="brand" href="#" data-page="dashboard" aria-label="拾页图书馆首页">
@@ -58,10 +80,10 @@
         <div class="breadcrumb"><span>拾页图书馆</span><b>/</b><strong id="page-title">总览</strong></div>
         <div class="top-actions">
           <span class="demo-pill"><i></i>本地演示</span>
-          <button id="role-switch" class="role-switch" type="button" title="切换演示身份">
+          <button id="role-switch" class="role-switch" type="button" title="退出登录并更换账号" aria-label="退出登录并更换账号">
             <span class="avatar" id="user-avatar">张</span>
             <span class="role-copy"><strong id="user-name">张三</strong><small id="user-role">读者模式</small></span>
-            <span class="chevron">⌄</span>
+            <span class="chevron">退出</span>
           </button>
         </div>
       </header>
