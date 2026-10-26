@@ -43,6 +43,7 @@ let pendingBorrowBookId = null;
 let milestoneReaderId = null;
 let milestoneStoryKey = null;
 let openingReturnPage = null;
+let endingReturnPage = null;
 
 const content = document.querySelector("#page-content");
 const dialog = document.querySelector("#edit-dialog");
@@ -292,6 +293,7 @@ function unlockedStories(user = currentUser()) {
   const stories = ["opening"];
   const flags = user.storyFlags || {};
   if (state.character === "rukawa" && (characterReturns(user) > 4 || flags.rukawaFirstPass)) stories.push("rukawaFirstPass");
+  if (state.character === "rukawa" && (characterProgress(user) >= 25 || flags.rukawaEnding)) stories.push("rukawaEnding");
   if (state.character === "nailong") {
     if (characterReturns(user) > 4 || flags.nailongTrust) stories.push("nailongTrust");
     if (characterProgress(user) >= 25 || flags.nailongFrog) stories.push("nailongFrog");
@@ -315,10 +317,10 @@ function progressMarkup(user) {
     <figure class="character-portrait">
       <button class="portrait-replay" type="button" data-action="replay-story" data-story="${latestStory}" aria-label="点击重看${character.name}已解锁剧情">
       <img src="${character.image}" alt="${character.alt}" width="${character.width}" height="${character.height}">
-      <span class="portrait-caption"><span>攻略对象 · ${character.name}</span><b>♡ ${latestStory === "nailongFrog" ? "心动已被你击中" : latestStory !== "opening" ? "目光开始为你停留" : "故事从初遇开始"}</b><small>点击图片，重温这段剧情 →</small></span>
+      <span class="portrait-caption"><span>攻略对象 · ${character.name}</span><b>♡ ${latestStory === "nailongFrog" || latestStory === "rukawaEnding" ? "心动已被你击中" : latestStory !== "opening" ? "目光开始为你停留" : "故事从初遇开始"}</b><small>点击图片，重温这段剧情 →</small></span>
       </button>
     </figure>
-    <div class="story-replay-links" aria-label="已解锁剧情">${stories.map((story) => `<button type="button" class="text-button" data-action="replay-story" data-story="${story}">${story === "opening" ? "重看初遇" : story === "nailongFrog" ? "重看结局" : "重看中期"}</button>`).join("")}</div>
+    <div class="story-replay-links" aria-label="已解锁剧情">${stories.map((story) => `<button type="button" class="text-button" data-action="replay-story" data-story="${story}">${story === "opening" ? "重看初遇" : story === "nailongFrog" || story === "rukawaEnding" ? "重看结局" : "重看中期"}</button>`).join("")}</div>
     <div class="progress-quote">${returned >= 25 ? "恭喜达成目标！新的故事，正等着你们一起开启。 ✨" : `本角色已完成 <strong>${characterReturns(user)}</strong> 次归还，还需积累 ${Math.max(0, 25 - characterReturns(user) + overduePenalty(user))} 点好感度，就能抵达下一段故事。`}</div>
     <div class="quick-actions"><button class="button button-primary" data-page="catalog">去挑一本书 <span>→</span></button><button class="button button-quiet" data-page="loans">我的借阅</button></div>
   </section>`;
@@ -439,12 +441,16 @@ function maybeShowFirstPassStory() {
   const user = currentUser();
   const flags = user.storyFlags || {};
   let event;
-  if (state.character === "rukawa" && characterReturns(user) > 4 && !flags.rukawaFirstPass) event = "rukawaFirstPass";
+  if (state.character === "rukawa") {
+    if (characterReturns(user) > 4 && !flags.rukawaFirstPass) event = "rukawaFirstPass";
+    else if (characterProgress(user) >= 25 && !flags.rukawaEnding) event = "rukawaEnding";
+  }
   if (state.character === "nailong") {
     if (characterReturns(user) > 4 && !flags.nailongTrust) event = "nailongTrust";
     else if (characterProgress(user) >= 25 && !flags.nailongFrog) event = "nailongFrog";
   }
   if (!event) return;
+  if (event === "rukawaEnding") return showRukawaEnding();
   showMilestoneStory(event);
 }
 
@@ -547,7 +553,8 @@ document.addEventListener("click", (event) => {
     if (button.dataset.story === "opening") {
       openingReturnPage = state.page;
       showOpeningStory();
-    } else showMilestoneStory(button.dataset.story);
+    } else if (button.dataset.story === "rukawaEnding") showRukawaEnding(state.page);
+    else showMilestoneStory(button.dataset.story);
   }
   else if (action === "add-book") openBookDialog();
   else if (action === "edit-book") openBookDialog(state.books.find((book) => book.id === id));
@@ -798,6 +805,42 @@ function showOpeningStory() {
   window.scrollTo({ top: 0 });
   document.querySelector(`#${title}`).focus();
 }
+
+function showRukawaEndingStage(stage) {
+  const storyStage = stage === "story";
+  document.querySelector("#rukawa-ending-story").hidden = !storyStage;
+  document.querySelector("#rukawa-ending-image").hidden = storyStage;
+  const title = storyStage ? "rukawa-ending-title" : "rukawa-ending-result-title";
+  document.querySelector("#rukawa-ending-screen").setAttribute("aria-labelledby", title);
+  window.scrollTo({ top: 0 });
+  document.querySelector(`#${title}`).focus();
+}
+
+function showRukawaEnding(returnPage) {
+  if (!authenticated || isAdmin() || state.character !== "rukawa" || document.querySelector("#library-app").hidden) return;
+  if (document.querySelector("#milestone-dialog").open || document.querySelector("#borrow-dialog").open || dialog.open) return;
+  endingReturnPage = returnPage || null;
+  document.querySelector("#character-screen").hidden = true;
+  document.querySelector("#welcome-screen").hidden = true;
+  document.querySelector("#login-screen").hidden = true;
+  document.querySelector("#library-app").hidden = true;
+  document.querySelector("#story-screen").hidden = true;
+  document.querySelector("#rukawa-ending-screen").hidden = false;
+  showRukawaEndingStage("story");
+  updateMusicStage();
+}
+
+document.querySelector("#rukawa-ending-next").addEventListener("click", () => showRukawaEndingStage("image"));
+document.querySelector("#rukawa-ending-done").addEventListener("click", () => {
+  const user = currentUser();
+  user.storyFlags ??= {};
+  user.storyFlags.rukawaEnding = true;
+  persist();
+  document.querySelector("#rukawa-ending-screen").hidden = true;
+  const page = endingReturnPage || "dashboard";
+  endingReturnPage = null;
+  enterLibrary(page);
+});
 
 document.querySelector("#story-continue").addEventListener("click", continueFromOpening);
 document.querySelector("#nailong-story-continue").addEventListener("click", continueFromOpening);

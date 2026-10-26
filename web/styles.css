@@ -439,6 +439,9 @@ td { padding: 13px 20px; border-top: 1px solid var(--tone-f3eef0, #f3eef0); font
 .story-prose p { margin-bottom: 17px; }
 .story-thought { padding: 14px 18px; border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; background: var(--canvas); color: var(--primary); }
 .story-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-top: 26px; }
+.ending-art { margin: 0; display: grid; gap: 14px; justify-items: center; align-content: start; }
+.ending-art img { display: block; width: 100%; max-width: 420px; height: auto; border-radius: 12px; object-fit: contain; }
+.ending-art figcaption { font-weight: 700; color: var(--primary); text-align: center; }
 @media (max-width: 650px) {
   .story-card { grid-template-columns: 1fr; }
   .story-portrait { justify-content: center; height: 190px; overflow: hidden; }
