@@ -9,7 +9,28 @@
 - 借阅者登录后借阅、归还图书
 - 保存借阅日期和借阅记录
 
-## 文件分工
+## 项目目录
+
+```text
+程序设计plus/
+├── src/              # C 源码和头文件
+├── assets/console/   # 控制台音乐和结局字符画
+├── web/              # 网页代码、书目和网页素材
+├── tests/            # 网页和登录服务测试
+├── build/            # 编译产物和临时文件，不纳入 Git
+├── local-data/       # 网页账号数据库，不纳入 Git
+├── .vscode/          # 编译和调试配置
+├── books.txt         # C 程序图书数据
+├── users.txt         # C 程序用户数据
+├── loans.txt         # C 程序借阅记录
+├── server.py         # 网页服务入口
+├── Makefile          # C 程序编译入口
+└── README.md         # 使用说明
+```
+
+修改 C 功能看 `src/`，修改网页看 `web/`。三个 C 数据文件保留原位，继续使用已有数据。以下编译和运行命令均在项目根目录执行，以便读取数据及 `assets/console/` 素材。
+
+### 源码分工（位于 src/）
 
 - `main.c`：登录和菜单流程
 - `models.h`：公共数据结构和容量定义
@@ -23,23 +44,25 @@
 需要安装 GCC 或 MinGW。在项目目录执行：
 
 ```bash
-gcc -std=c11 -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 main.c book.c user.c loan.c utils.c -o library
-./library
+mkdir -p build
+gcc -std=c11 -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 src/main.c src/book.c src/user.c src/loan.c src/utils.c -o build/library
+./build/library
 ```
 
 Windows PowerShell 下运行：
 
 ```powershell
-gcc -std=c11 -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 main.c book.c user.c loan.c utils.c -o library.exe -lwinmm
+New-Item -ItemType Directory -Force build | Out-Null
+gcc -std=c11 -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 src/main.c src/book.c src/user.c src/loan.c src/utils.c -o build/library.exe -lwinmm
 chcp 65001
-.\library.exe
+.\build\library.exe
 ```
 
-也可以使用 Makefile：
+也可以使用 Makefile（产物输出到 `build/`）。VS Code 中按 `Ctrl+Shift+B` 编译，按 `F5` 调试：
 
 ```bash
 make
-./library
+./build/library
 ```
 
 程序启动时会读取当前目录的 `books.txt`、`users.txt` 和 `loans.txt`。文件使用 `|` 分隔字段，格式如下：
