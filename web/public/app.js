@@ -757,8 +757,9 @@ async function playMusic() {
 
 function updateMusicStage() {
   const atEntrance = !document.querySelector("#character-screen").hidden || !document.querySelector("#welcome-screen").hidden || !document.querySelector("#story-screen").hidden || !document.querySelector("#login-screen").hidden;
+  const inEnding = !document.querySelector("#rukawa-ending-screen").hidden;
   const returned = characterProgress();
-  const next = atEntrance || isAdmin() || returned <= 4 ? "begin" : returned >= 25 ? "ending" : "middle";
+  const next = atEntrance || isAdmin() || returned <= 4 ? "begin" : inEnding || returned >= 25 ? "ending" : "middle";
   document.querySelector("#music-stage").textContent = { begin: "初遇 · 开场曲", middle: "靠近 · 攻略曲", ending: "心动 · 结局曲" }[next];
   if (next === musicStage) return;
   musicStage = next;
