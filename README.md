@@ -1,6 +1,32 @@
-# 图书馆检索系统（C 语言模块化版）
+# 心动图书馆（网页版与 C 控制台版）
 
-这是一个适合大学程序设计课程小组作业的控制台程序，支持：
+## 同学拉取代码后，如何打开网页版
+
+**网页版只需要 Python 3.8 或更新版本，不需要编译 C，也不需要安装第三方 Python 包。**
+
+1. 用 `git clone` 拉取整个仓库，或在 GitHub 选择 Code → Download ZIP 后完整解压。保留 `server.py`、`start-web.bat` 和整个 `web/` 文件夹（包括 `web/assets/`）。
+2. 安装 [Python 3](https://www.python.org/downloads/)。Windows 安装时建议勾选 **Add Python to PATH**。
+3. Windows 双击根目录的 **`start-web.bat`**，会启动本地服务并自动打开浏览器。首次进入网页后自行注册账号即可。
+
+也可以在项目根目录的终端启动（Windows）：
+
+```powershell
+python server.py --open
+```
+
+macOS / Linux：
+
+```bash
+python3 server.py --open
+```
+
+浏览器地址为 **http://localhost:8001**。保持服务窗口运行，按 **Ctrl+C** 关闭。若浏览器未自动打开，手动访问该地址即可。不要直接双击 `web/index.html`，也不要用纯静态服务器代替 `server.py`，否则登录接口不可用。
+
+如果 8001 端口被占用，可以执行 `python server.py --open --port 8002`（macOS / Linux 使用 `python3`），或在 Windows 终端执行 `.\start-web.bat --port 8002`，然后访问 http://localhost:8002。
+
+每位同学都在自己的电脑上运行本地服务，因此不需要你保持电脑开机。账号数据库会自动在各自的 `local-data/` 中创建，馆藏和借阅进度保存在各自浏览器中；账号与进度不会随 Git 同步。上传时保留全部网页源码和图片、音乐，无需上传 `build/` 或 `local-data/`。
+
+C 控制台部分适合大学程序设计课程小组作业，支持：
 
 - 查看全部图书
 - 按书名、作者或分类检索
@@ -25,6 +51,7 @@
 ├── users.txt         # C 程序用户数据
 ├── loans.txt         # C 程序借阅记录
 ├── server.py         # 网页服务入口
+├── start-web.bat     # Windows 网页版一键启动入口
 ├── Makefile          # C 程序编译入口
 ├── CMakeLists.txt    # Windows / Linux / macOS 通用构建配置
 ├── build.bat         # Windows 一键编译入口

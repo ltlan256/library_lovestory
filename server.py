@@ -146,9 +146,15 @@ def make_server(port=8001, database=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run the library website with local account login.')
     parser.add_argument('--port', type=int, default=8001)
+    parser.add_argument('--open', action='store_true', help='Open the website in the default browser.')
     args = parser.parse_args()
     with make_server(args.port) as server:
-        print(f'Library is running: http://localhost:{args.port}', flush=True)
+        url = f'http://localhost:{server.server_port}'
+        print(f'Library is running: {url}', flush=True)
+        print('Keep this window open. Press Ctrl+C to stop.', flush=True)
+        if args.open:
+            import webbrowser
+            webbrowser.open(url)
         try:
             server.serve_forever()
         except KeyboardInterrupt:

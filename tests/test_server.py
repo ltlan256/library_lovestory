@@ -14,6 +14,18 @@ from server import make_server
 
 
 class LoginTests(unittest.TestCase):
+    def test_website_files_are_served(self):
+        for route, content_type in (
+            ('/', 'text/html'), ('/app.js', 'javascript'),
+            ('/styles.css', 'text/css'), ('/books.json', 'application/json'),
+            ('/assets/nailong.png', 'image/png'), ('/assets/begin.mp3', 'audio/'),
+        ):
+            with self.subTest(route=route):
+                with self.client.open(self.base + route) as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertIn(content_type, response.headers['Content-Type'])
+                    self.assertTrue(response.read())
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.database = Path(self.temp.name) / 'accounts.sqlite3'
