@@ -4,23 +4,13 @@
     {
       "label": "编译图书馆程序",
       "type": "process",
-      "command": "gcc",
+      "command": "powershell.exe",
       "args": [
-        "-std=c11",
-        "-g",
-        "-Wall",
-        "-Wextra",
-        "-Wpedantic",
-        "-Wshadow",
-        "-Wformat=2",
-        "src/main.c",
-        "src/book.c",
-        "src/user.c",
-        "src/loan.c",
-        "src/utils.c",
-        "-o",
-        "build/library.exe",
-        "-lwinmm"
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/build.ps1"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
@@ -37,21 +27,14 @@
         "panel": "shared",
         "clear": true
       },
-      "dependsOn": "创建构建目录"
-    },
-    {
-      "label": "创建构建目录",
-      "type": "process",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-Command",
-        "New-Item -ItemType Directory -Force -Path 'build' | Out-Null"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
+      "linux": {
+        "command": "make",
+        "args": []
       },
-      "problemMatcher": []
+      "osx": {
+        "command": "make",
+        "args": []
+      }
     }
   ]
 }

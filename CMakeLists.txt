@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.16)
+project(library LANGUAGES C)
+
+add_executable(library src/main.c src/book.c src/user.c src/loan.c src/utils.c)
+set_target_properties(library PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+    target_compile_options(library PRIVATE /W4 /utf-8)
+    target_compile_definitions(library PRIVATE _CRT_SECURE_NO_WARNINGS)
+else()
+    target_compile_options(library PRIVATE -Wall -Wextra -Wpedantic -Wshadow -Wformat=2)
+endif()
+if(WIN32)
+    target_link_libraries(library PRIVATE winmm)
+endif()
+
+# Keep the executable in the same place for single and multi-configuration generators.
+set_target_properties(library PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES)
+    string(TOUPPER "${config}" config_upper)
+    set_target_properties(library PROPERTIES "RUNTIME_OUTPUT_DIRECTORY_${config_upper}" "${CMAKE_BINARY_DIR}")
+endforeach()
+
+include(CTest)
+if(BUILD_TESTING)
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME console_smoke COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_console.py" "$<TARGET_FILE:library>")
+    endif()
+endif()

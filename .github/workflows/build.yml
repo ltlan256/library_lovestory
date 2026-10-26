@@ -1,0 +1,17 @@
+name: Build on classmates' platforms
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build/ci -DBUILD_TESTING=ON
+      - name: Build
+        run: cmake --build build/ci --config Release
+      - name: Test
+        run: ctest --test-dir build/ci -C Release --output-on-failure --no-tests=error

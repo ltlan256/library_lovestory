@@ -17,6 +17,7 @@
 ├── assets/console/   # 控制台音乐和结局字符画
 ├── web/              # 网页代码、书目和网页素材
 ├── tests/            # 网页和登录服务测试
+├── scripts/          # 可在其他电脑复用的构建脚本
 ├── build/            # 编译产物和临时文件，不纳入 Git
 ├── local-data/       # 网页账号数据库，不纳入 Git
 ├── .vscode/          # 编译和调试配置
@@ -25,6 +26,8 @@
 ├── loans.txt         # C 程序借阅记录
 ├── server.py         # 网页服务入口
 ├── Makefile          # C 程序编译入口
+├── CMakeLists.txt    # Windows / Linux / macOS 通用构建配置
+├── build.bat         # Windows 一键编译入口
 └── README.md         # 使用说明
 ```
 
@@ -40,6 +43,51 @@
 - `utils.c` / `utils.h`：输入和通用字符串工具
 
 ## 编译运行
+
+### 发给同学后如何编译
+
+请上传或打包整个源码项目，包含 `src/`、`assets/`、三个 `.txt` 数据文件及构建脚本。其他同学不需要你的电脑路径；编译器需要在各自电脑上安装。`build/`、本地账号数据库和编译器工具链无需上传。不要用个人账号数据替换仓库中的演示数据。
+
+**Windows 推荐方式（GCC，无需安装 make 或 CMake）：**
+
+1. 从 [w64devkit 官方发布页](https://github.com/skeeto/w64devkit/releases)下载适合电脑架构的工具链并解压，或使用已安装的 MinGW-w64。
+2. 将工具链的 `bin` 目录加入 PATH，重新打开终端。在项目根目录执行：
+
+```powershell
+.\build.bat
+.\build\library.exe
+```
+
+也可以双击 `build.bat` 编译。如果不想设置 PATH，可显式指定编译器（换成自己电脑的路径）：
+
+```powershell
+.\build.bat -Compiler "D:\w64devkit\bin\gcc.exe"
+```
+
+脚本会自动创建输出目录、编译全部 C 模块并链接 Windows 音乐库。VS Code 的 `Ctrl+Shift+B` 使用同一个脚本。每次运行程序都应从项目根目录执行上述运行命令。
+
+**Linux / macOS：**安装 GCC 或 Clang 及 make（Ubuntu 可安装 `build-essential`；macOS 可执行 `xcode-select --install`），然后在项目根目录执行 `make`、`./build/library`。非 Windows 系统提供控制台功能，背景音乐仅在 Windows 播放。
+
+**使用 Visual Studio / CMake 的同学：**安装 CMake 和 C 编译工具链。Windows 的 Visual Studio Installer 中需勾选“使用 C++ 的桌面开发”（含 Windows SDK）；只有 VS Code 编辑器还不能编译。项目支持 MSVC、GCC 和 Clang。在项目根目录执行：
+
+```text
+cmake -S . -B build/cmake
+cmake --build build/cmake --config Release
+```
+
+Windows 运行 `.\build\cmake\library.exe`，Linux / macOS 运行 `./build/cmake/library`。切换编译器时使用新的构建目录。安装 Python 3 后，可执行 `ctest --test-dir build/cmake -C Release --output-on-failure` 进行启动、数据读取和退出检查；Python 不是 C 程序的编译依赖。
+
+Windows 使用 GCC 配合 CMake 时，推荐使用 Ninja（w64devkit 已附带），尤其项目路径含中文时，避免使用 `MinGW Makefiles` 生成器：
+
+```powershell
+cmake -S . -B build/cmake-gcc -G Ninja -DCMAKE_C_COMPILER=gcc
+cmake --build build/cmake-gcc
+ctest --test-dir build/cmake-gcc --output-on-failure
+```
+
+仓库附有 GitHub Actions 配置，上传到 GitHub 后会分别在 Windows、Linux、macOS 上自动构建和检查。是否通过以 Actions 实际结果为准。
+
+### 手动使用 GCC / Makefile
 
 需要安装 GCC 或 MinGW。在项目目录执行：
 
