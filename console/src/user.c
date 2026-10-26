@@ -10,8 +10,8 @@ void user_load(UserStore *store, const char *file_name) {
     if (file == NULL) return;
     while (store->count < MAX_USERS && fgets(line, sizeof(line), file) != NULL) {
         User *user = &store->items[store->count]; trim_newline(line);
-        user->returned_books = 0;
-        if (sscanf(line, "%d|%63[^|]|%63[^|]|%127[^|]|%d|%d", &user->id, user->username, user->password, user->name, &user->is_admin, &user->returned_books) >= 5) store->count++;
+        user->returned_books = 0; user->overdue_penalty = 0;
+        if (sscanf(line, "%d|%63[^|]|%63[^|]|%127[^|]|%d|%d|%d", &user->id, user->username, user->password, user->name, &user->is_admin, &user->returned_books, &user->overdue_penalty) >= 5) store->count++;
     }
     fclose(file);
 }
@@ -21,7 +21,7 @@ int user_save(const UserStore *store, const char *file_name) {
     if (file == NULL) { perror("无法保存用户数据"); return 0; }
     for (int i = 0; i < store->count; i++) {
         const User *user = &store->items[i];
-        fprintf(file, "%d|%s|%s|%s|%d|%d\n", user->id, user->username, user->password, user->name, user->is_admin, user->returned_books);
+        fprintf(file, "%d|%s|%s|%s|%d|%d|%d\n", user->id, user->username, user->password, user->name, user->is_admin, user->returned_books, user->overdue_penalty);
     }
     fclose(file); return 1;
 }
@@ -38,10 +38,15 @@ void user_add(UserStore *store, const char *file_name) {
     User user; int max_id = 0;
     if (store->count >= MAX_USERS) { printf("用户数量已达到上限。\n"); return; }
     for (int i = 0; i < store->count; i++) if (store->items[i].id > max_id) max_id = store->items[i].id;
-    user.id = max_id + 1; user.returned_books = 0;
+    user.id = max_id + 1; user.returned_books = 0; user.overdue_penalty = 0;
     read_line("请输入登录账号: ", user.username, sizeof(user.username)); read_line("请输入登录密码: ", user.password, sizeof(user.password));
     read_line("请输入借阅者姓名: ", user.name, sizeof(user.name)); user.is_admin = 0;
     store->items[store->count++] = user; user_save(store, file_name); printf("借阅者添加成功，用户编号为 %d。\n", user.id);
+}
+
+int user_progress(const User *user) {
+    int progress = user->returned_books - user->overdue_penalty;
+    return progress > 0 ? progress : 0;
 }
 
 void user_list(const UserStore *store) {

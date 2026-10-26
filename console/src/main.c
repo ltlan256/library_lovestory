@@ -163,25 +163,27 @@ static void ending_sequence(void) {
 }
 
 static void relationship_status(const User *user) {
-    int filled = user->returned_books * 10 / 25;
+    int progress = user_progress(user);
+    int filled = progress * 10 / 25;
     if (filled > 10) filled = 10;
-    bgm_update_for_progress(user->returned_books);
-    if (user->returned_books >= 25) {
+    bgm_update_for_progress(progress);
+    if (progress >= 25) {
         ending_sequence();
         return;
     }
     printf("\n========== 攻略进度 ==========\n");
     printf("对象：流川枫  (´• ω •`)\n");
-    flow_portrait(user->returned_books > 4);
-    if (user->returned_books > 4) {
-        printf("流川枫脸红了！你已经成功借阅并归还 %d 本书。\n", user->returned_books);
+    flow_portrait(progress > 4);
+    if (progress > 4) {
+        printf("流川枫脸红了！你的攻略进度为 %d。\n", progress);
     } else {
         printf("借阅并成功归还超过 4 本后，流川枫就会脸红。\n");
     }
     printf("流川枫  (´• ω •`)   好感度：");
     for (int i = 0; i < 10; i++) printf(i < filled ? "♥" : "♡");
-    printf(" %d / 25 本\n", user->returned_books);
-    if (user->returned_books > 0) {
+    printf(" %d / 25 本\n", progress);
+    if (user->overdue_penalty > 0) printf("（已扣除逾期罚分 %d 点）\n", user->overdue_penalty);
+    if (progress > 0) {
         printf("(ง •̀_•́)ง 继续借阅并归还，就快成功啦！\n");
     } else {
         printf("(｡•́︿•̀｡) 还没有成功归还记录，快去挑一本书吧！\n");
@@ -207,17 +209,17 @@ static void run_admin(BookStore *books, UserStore *users, LoanStore *loans) {
 
 static void run_user(User *user, BookStore *books, UserStore *users, LoanStore *loans) {
     int choice;
-    bgm_update_for_progress(user->returned_books);
+    bgm_update_for_progress(user_progress(user));
     while (1) {
         user_menu(); choice = read_int("请选择操作: ");
         switch (choice) {
             case 1: book_list(books); break; case 2: book_search(books); break;
             case 3: loan_borrow(books, loans, user, BOOK_FILE, LOAN_FILE); break;
             case 4: {
-                int returned_before = user->returned_books;
+                int progress_before = user_progress(user);
                 loan_return(books, loans, users, user, BOOK_FILE, LOAN_FILE, USER_FILE);
-                bgm_update_for_progress(user->returned_books);
-                if (returned_before < 25 && user->returned_books >= 25) {
+                bgm_update_for_progress(user_progress(user));
+                if (progress_before < 25 && user_progress(user) >= 25) {
                     ending_sequence();
                 }
                 break;
