@@ -10,10 +10,10 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/scripts/build.ps1"
+        "${workspaceFolder}/console/scripts/build.ps1"
       ],
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}/console"
       },
       "problemMatcher": [
         "$gcc"

@@ -41,7 +41,7 @@ def credential_error(name, student_id, password, role):
 
 class LibraryHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(ROOT / 'web'), **kwargs)
+        super().__init__(*args, directory=str(ROOT / 'public'), **kwargs)
 
     def reply(self, status, payload, cookie=None):
         data = json.dumps(payload, ensure_ascii=False).encode('utf-8')

@@ -12,7 +12,7 @@
 #define BOOK_FILE "books.txt"
 #define USER_FILE "users.txt"
 #define LOAN_FILE "loans.txt"
-#define ENDING_ART_FILE "assets/console/ending.txt"
+#define ENDING_ART_FILE "assets/ending.txt"
 
 #ifdef _WIN32
 enum { BGM_BEGIN, BGM_MIDDLE, BGM_ENDING };
@@ -26,9 +26,9 @@ static void bgm_play_stage(int stage) {
 
     mciSendStringA("stop library_bgm", NULL, 0, NULL);
     mciSendStringA("close library_bgm", NULL, 0, NULL);
-    if (stage == BGM_ENDING) filename = "assets/console/ending.mp3";
-    else if (stage == BGM_MIDDLE) filename = "assets/console/middle.mp3";
-    else filename = "assets/console/begin.mp3";
+    if (stage == BGM_ENDING) filename = "assets/ending.mp3";
+    else if (stage == BGM_MIDDLE) filename = "assets/middle.mp3";
+    else filename = "assets/begin.mp3";
     snprintf(command, sizeof(command),
              "open \"%s\" type mpegvideo alias library_bgm", filename);
     mciSendStringA(command, NULL, 0, NULL);

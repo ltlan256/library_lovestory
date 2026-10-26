@@ -10,8 +10,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure
-        run: cmake -S . -B build/ci -DBUILD_TESTING=ON
+        run: cmake -S console -B build/ci -DBUILD_TESTING=ON
       - name: Build
         run: cmake --build build/ci --config Release
       - name: Test
         run: ctest --test-dir build/ci -C Release --output-on-failure --no-tests=error
+      - name: Test website service
+        working-directory: web
+        run: python -m unittest discover -s tests -v

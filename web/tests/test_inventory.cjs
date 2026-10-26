@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const catalog = JSON.parse(fs.readFileSync('web/books.json', 'utf8'));
-const source = fs.readFileSync('web/app.js', 'utf8');
+const catalog = JSON.parse(fs.readFileSync('public/books.json', 'utf8'));
+const source = fs.readFileSync('public/app.js', 'utf8');
 const storageKey = 'shiye-library-web-v1';
 
 async function launch(saved, offline = false, route = '', now = null) {
@@ -193,7 +193,7 @@ async function launch(saved, offline = false, route = '', now = null) {
   assert.equal(yellowRoute.run('state.users.find(user => user.id === 2).characterProgress.nailong'), 1);
   const invalidRoute = await launch(undefined, false, '?character=invalid');
   assert.equal(invalidRoute.element('#character-screen').hidden, false);
-  assert.ok(fs.statSync('web/assets/nailong.png').size > 0);
+  assert.ok(fs.statSync('public/assets/nailong.png').size > 0);
   console.log('PASS: character choice, pink/yellow routes, portrait switching, separate persisted progress and return attribution');
 
   const story = await launch(undefined, false, '?character=rukawa');
@@ -297,8 +297,8 @@ async function launch(saved, offline = false, route = '', now = null) {
   assert.equal(rukawaEnding.element('#library-app').hidden, true);
   assert.equal(rukawaEnding.element('#rukawa-ending-story').hidden, false, 'the narrative page comes first');
   assert.equal(rukawaEnding.element('#rukawa-ending-image').hidden, true);
-  const endingHtml = fs.readFileSync('web/index.html', 'utf8');
-  assert.ok(fs.existsSync('web/assets/rukawa-ending.jpg'), 'ending image is bundled');
+  const endingHtml = fs.readFileSync('public/index.html', 'utf8');
+  assert.ok(fs.existsSync('public/assets/rukawa-ending.jpg'), 'ending image is bundled');
   assert.match(endingHtml, /恭喜你，可以跟流川枫一起打篮球了/);
   assert.match(endingHtml, /你们的目光总会相遇，而他再也没有躲开过/);
   rukawaEnding.element('#rukawa-ending-next').handlers.click();
