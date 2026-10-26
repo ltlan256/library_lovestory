@@ -26,9 +26,23 @@
 │   └── README.md         # 终端版使用说明
 ├── .github/              # 自动检查
 ├── .vscode/              # 编辑器编译与调试配置
+├── docs/                 # 剧情说明
 ├── AGENTS.md             # 项目维护规则
 └── README.md             # 本页：两个版本的入口
 ```
+
+## 环境要求
+
+| 版本 | 必需环境 | 可选 | 运行时数据 |
+| --- | --- | --- | --- |
+| 网页版 `web/` | Python 3.8+（仅使用标准库，无需 `pip install`）；现代浏览器 | 可用 `python web/server.py --open` 自动打开浏览器 | `web/local-data/`（本机账号库，自动生成） |
+| 终端版 `console/` | Windows：GCC（w64devkit 或 MinGW-w64）；Linux / macOS：GCC 或 Clang 与 make；CMake 构建需 CMake 与 Ninja 或 Visual Studio | Python 3（仅用于运行测试脚本，不是编译依赖） | `console/books.txt`、`users.txt`、`loans.txt` |
+
+两个版本的账号和借阅数据互相独立，不会同步。
+
+## 剧情
+
+心动图书馆包含流川枫篇与奶龙篇，借书并按时归还即可推进好感度，25 点解锁特别结局。完整剧情见 [剧情说明](docs/剧情.md)。
 
 ## 打开网页版
 
